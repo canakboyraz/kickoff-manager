@@ -18,7 +18,7 @@ workflows:
         XCODE_PROJECT: KickoffManager.xcodeproj
         XCODE_SCHEME: KickoffManager
         # The numeric "Apple ID" of the app, shown in App Store Connect → App Information.
-        APP_STORE_APPLE_ID: 0000000000
+        APP_STORE_APPLE_ID: 6825036825
       xcode: latest
     triggering:
       events:
