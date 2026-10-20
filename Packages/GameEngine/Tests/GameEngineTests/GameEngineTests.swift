@@ -135,6 +135,7 @@ final class GameEngineTests: XCTestCase {
 
         var playedFitnessDrop = false
         for _ in 0..<(career.matchdayCount - 1) {
+            career.manager.boardConfidence = 100
             career.advanceWeek()
             if career.userSquad.contains(where: { $0.fitness < 100 }) { playedFitnessDrop = true }
         }
@@ -147,6 +148,7 @@ final class GameEngineTests: XCTestCase {
             XCTAssertTrue(cup.fixtures.allSatisfy { $0.result != nil })
         }
 
+        career.manager.boardConfidence = 100
         let report = career.advanceWeek()
         XCTAssertNotNil(report.finishedSeason)
         XCTAssertEqual(career.season, startSeason + 1)
@@ -257,7 +259,110 @@ final class GameEngineTests: XCTestCase {
         XCTAssertEqual(career.startUpgrade(.medical), .started)
         XCTAssertEqual(career.startUpgrade(.medical), .alreadyInProgress)
         let weeks = career.userClub.upgrades.first!.totalWeeks
-        for _ in 0..<weeks { career.advanceWeek() }
+        for _ in 0..<weeks {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
         XCTAssertEqual(career.userClub.facilities.medical, before + 1)
+    }
+
+    // MARK: - Manager
+
+    func testBoardSacksManagerAndJobOffersFollow() {
+        var career = Career.generate(seed: 41)
+        career.chooseClub(career.leagues[0].clubIDs[0])
+        XCTAssertEqual(career.boardExpectation, .title)
+        for _ in 0..<6 { career.advanceWeek() }
+        career.manager.boardConfidence = Career.sackingThreshold
+        career.checkJobSecurity()
+        XCTAssertTrue(career.isUnemployed)
+        XCTAssertFalse(career.jobOffers.isEmpty)
+        XCTAssertEqual(career.manager.timesSacked, 1)
+        XCTAssertTrue(career.inbox.contains { if case .sacked = $0.kind { return true } else { return false } })
+
+        // No football while unemployed.
+        let weekBefore = career.week
+        career.advanceWeek()
+        XCTAssertEqual(career.week, weekBefore)
+
+        // Taking a new job starts fresh at the new club.
+        let offer = career.jobOffers[0]
+        career.acceptJob(offer.id)
+        XCTAssertFalse(career.isUnemployed)
+        XCTAssertEqual(career.userClubID, offer.clubID)
+        XCTAssertEqual(career.manager.boardConfidence, 60)
+        XCTAssertEqual(career.userStarters.compactMap { $0 }.count, 11)
+        career.advanceWeek()
+        XCTAssertEqual(career.week, weekBefore + 1)
+    }
+
+    func testBoardWarnsBeforeSacking() {
+        var career = Career.generate(seed: 42)
+        career.chooseClub(career.leagues[1].clubIDs[3])
+        for _ in 0..<6 { career.advanceWeek() }
+        career.manager.boardConfidence = 25
+        career.checkJobSecurity()
+        XCTAssertFalse(career.isUnemployed)
+        XCTAssertEqual(career.manager.warningLevel, 1)
+    }
+
+    func testWinterWindowAndAnnouncements() {
+        var career = Career.generate(seed: 43)
+        career.chooseClub(career.leagues[0].clubIDs[6])
+        XCTAssertTrue(career.isTransferWindowOpen)
+        while career.week < Career.summerWindowWeeks {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        XCTAssertFalse(career.isTransferWindowOpen)
+        XCTAssertEqual(career.transferWindowStatus.opensIn, career.matchdayCount / 2 - career.week)
+        while career.week < career.matchdayCount / 2 {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        XCTAssertTrue(career.isTransferWindowOpen)
+        XCTAssertEqual(career.transferWindowStatus.weeksLeft, Career.winterWindowWeeks)
+        XCTAssertTrue(career.inbox.contains { if case .transferWindowOpened(true, _) = $0.kind { return true } else { return false } })
+    }
+
+    func testVersionTwoSaveStillLoads() throws {
+        var career = Career.generate(seed: 44)
+        career.chooseClub(career.leagues[0].clubIDs[3])
+        career.advanceWeek()
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(career)) as! [String: Any]
+        json.removeValue(forKey: "manager")
+        json.removeValue(forKey: "jobOffers")
+        json.removeValue(forKey: "isUnemployed")
+        json["version"] = 2
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let loaded = try JSONDecoder().decode(Career.self, from: data)
+        XCTAssertEqual(loaded.version, Career.currentVersion)
+        XCTAssertEqual(loaded.userClubID, career.userClubID)
+        XCTAssertFalse(loaded.isUnemployed)
+        XCTAssertGreaterThan(loaded.manager.reputation, 0)
+    }
+
+    func testNegotiationIsFlexible() {
+        var career = Career.generate(seed: 45)
+        career.chooseClub(career.leagues[0].clubIDs[1])
+        let target = career.marketPlayers(filter: TransferFilter(maxPrice: 3_000_000))
+            .first { career.askingPrice(for: $0.id) >= 500_000 }!
+        let asking = career.askingPrice(for: target.id)
+        // Five serious rounds are allowed, and each counter moves towards the bid.
+        var previous = asking
+        var agreed = false
+        for _ in 0..<4 {
+            switch career.negotiateFee(playerID: target.id, fee: Career.roundTo(Double(asking) * 0.6, step: 50_000)) {
+            case .counter(let fee, _):
+                XCTAssertLessThanOrEqual(fee, previous)
+                previous = fee
+            case .agreed:
+                agreed = true
+            default:
+                XCTFail("talks should still be open")
+            }
+            if agreed { break }
+        }
+        XCTAssertLessThan(previous, asking)
     }
 }

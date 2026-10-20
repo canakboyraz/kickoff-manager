@@ -3,7 +3,7 @@
 FC kariyer modu sadeliğinde, kurgusal takımlarla oynanan bir iOS futbol menajerlik oyunu.
 SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 
-## Neler var (v0.2)
+## Neler var (v0.3)
 
 - **5 kurgusal lig**: Hilal Lig (TR), Albion Premier (EN), Liga Ibérica (ES), Bundesklasse (DE), Serie Azzurra (IT). Her ligde 18 kulüp, kulüp başına 24 oyuncu.
 - **Kadro ve diziliş**: 5 diziliş (4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2). İlk 11, 7 yedek ve kadro dışı aynı ekranda; iki oyuncuya sırayla dokunarak yer değiştirilir. Otomatik diz butonu.
@@ -13,6 +13,8 @@ SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 - **Transfer pazarlığı**: önce kulüple bonservis (karşı teklif, sabır, çok düşük teklife sinirlenme), sonra oyuncuyla maaş ve süre. Büyük yıldızlar küçük kulübe gelmek istemez.
 - **Satış**: oyuncuyu transfer listesine koyma, gelen tekliflere kabul, ret ya da pazarlık (karşı teklif).
 - **Avrupa kupaları**: lig ilk 3'ü bir sonraki sezon Elit Kupa'ya, 4–6. sıralar Kıta Ligi'ne katılır (en güçlü ligde bir fazla). 4 grup, iki maçlı çeyrek ve yarı final, tarafsız sahada final. Hafta ortası oynanır; bilet geliri ve ödül parası lig maçlarından yüksektir.
+- **Teknik direktör**: saygınlık puanı, yönetimin hedefi (şampiyonluk, ilk 3, üst sıralar, orta sıralar, ligde kalmak) ve yönetimin güveni. Kötü sonuçlarda önce uyarı gelir, güven dibe vurursa kovulursun ve yeni kulüp seçersin. İyi giden menajere devre arasında ve sezon sonunda daha büyük kulüplerden iş teklifi gelir.
+- **Transfer dönemleri**: yaz (ilk 4 hafta) ve devre arası (4 hafta). Açılış ve kapanışta mesaj gelir, ana sayfada geri sayım görünür.
 - **Sezon döngüsü**: ödül parası, itibar değişimi, emeklilikler, sözleşme bitişleri, altyapıdan genç oyuncular, yeni fikstür ve kupa kuraları.
 - **Kulüp yönetimi**: antrenman, altyapı, sağlık tesisi yükseltmeleri; stadyum genişletme; bilet fiyatı; gelir ve giderler.
 - **Türkçe + İngilizce** arayüz, otomatik kayıt.
@@ -42,6 +44,7 @@ Oyun dengesini ayarlamak için en önemli yerler:
 | Kondisyon kaybı ve toparlanma | `Career/Career+Season.swift` |
 | Avrupa kontenjanları, ödüller, bilet çarpanı | `Career/Career+Europe.swift` |
 | Pazarlık kuralları, gelen teklif sıklığı | `Career/Career+Transfers.swift` |
+| Yönetim güveni, kovulma, iş teklifleri, transfer dönemleri | `Career/Career+Manager.swift` |
 | Oyuncu gelişim hızı | `Career/Career+Development.swift` |
 | Piyasa değeri, maaşlar | `Models/Player.swift` |
 | Bütçeler, bilet fiyatı, ödül parası | `Career/Career+Generation.swift`, `Career+Season.swift` |

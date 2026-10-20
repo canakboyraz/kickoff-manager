@@ -37,9 +37,20 @@ struct PlayerCardView: View {
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-            Text((slot ?? player.position).shortLabel)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(outOfPosition ? Theme.warning : Theme.textSecondary)
+            // Natural position always; when he fills a different slot, show it in amber.
+            HStack(spacing: 2) {
+                Text(player.position.shortLabel)
+                    .foregroundStyle(Theme.textSecondary)
+                if outOfPosition, let slot {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 7, weight: .heavy))
+                    Text(slot.shortLabel)
+                }
+            }
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(Theme.warning)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             TopAttributesRow(player: player)
             ValueBar(value: player.fitness, maxValue: 100, color: Theme.fitnessColor(player.fitness), height: 4)
                 .accessibilityLabel(L("player.fitness"))

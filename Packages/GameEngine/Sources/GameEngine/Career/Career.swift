@@ -2,8 +2,10 @@ import Foundation
 
 /// The whole save game. Value type: the app keeps one copy, mutates it and writes it to disk as JSON.
 public struct Career: Codable, Sendable {
-    /// Bumped whenever the save format changes; older saves are not loaded.
-    public static let currentVersion = 2
+    /// Bumped whenever the save format changes.
+    public static let currentVersion = 3
+    /// Oldest save format that can still be loaded (missing fields get defaults).
+    public static let minimumLoadableVersion = 2
 
     public var version: Int
     /// Year the current season started in (e.g. 2026 for 2026/27).
@@ -21,7 +23,45 @@ public struct Career: Codable, Sendable {
     public internal(set) var talks: [UUID: TransferTalks]
     /// This season's European cups.
     public internal(set) var cups: [Cup]
+    public internal(set) var manager: Manager
+    /// Offers from other clubs to become their manager.
+    public internal(set) var jobOffers: [JobOffer]
+    /// Sacked and waiting to accept a new job.
+    public internal(set) var isUnemployed: Bool
     var rng: SeededRandom
+}
+
+// MARK: - Loading older saves
+
+extension Career {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = Career.currentVersion
+        season = try container.decode(Int.self, forKey: .season)
+        week = try container.decode(Int.self, forKey: .week)
+        userClubID = try container.decode(UUID.self, forKey: .userClubID)
+        leagues = try container.decode([League].self, forKey: .leagues)
+        clubs = try container.decode([UUID: Club].self, forKey: .clubs)
+        players = try container.decode([UUID: Player].self, forKey: .players)
+        inbox = try container.decode([InboxMessage].self, forKey: .inbox)
+        offers = try container.decode([IncomingOffer].self, forKey: .offers)
+        history = try container.decode([SeasonSummary].self, forKey: .history)
+        userTactics = try container.decode(Tactics.self, forKey: .userTactics)
+        talks = try container.decode([UUID: TransferTalks].self, forKey: .talks)
+        cups = try container.decode([Cup].self, forKey: .cups)
+        rng = try container.decode(SeededRandom.self, forKey: .rng)
+        // Added in version 3.
+        if let saved = try container.decodeIfPresent(Manager.self, forKey: .manager) {
+            manager = saved
+        } else if let club = clubs[userClubID] {
+            manager = Manager.starting(at: club)
+            manager.seasonsManaged = history.count
+        } else {
+            manager = Manager(reputation: 40, boardConfidence: 60, trophies: 0, timesSacked: 0, seasonsManaged: 0, warningLevel: 0)
+        }
+        jobOffers = try container.decodeIfPresent([JobOffer].self, forKey: .jobOffers) ?? []
+        isUnemployed = try container.decodeIfPresent(Bool.self, forKey: .isUnemployed) ?? false
+    }
 }
 
 // MARK: - Read helpers used by the app
@@ -76,10 +116,9 @@ extension Career {
         userLeague.fixtures.filter { $0.involves(userClubID) }.sorted { $0.matchday < $1.matchday }
     }
 
-    /// Summer window: first 4 matchdays. Winter window: 3 matchdays from the halfway point.
+    /// Summer window: first 4 matchdays. Winter window: 4 matchdays from the halfway point.
     public var isTransferWindowOpen: Bool {
-        let half = matchdayCount / 2
-        return week < 4 || (week >= half && week < half + 3)
+        transferWindowStatus.isOpen
     }
 
     public var unreadCount: Int { inbox.filter { !$0.isRead }.count }

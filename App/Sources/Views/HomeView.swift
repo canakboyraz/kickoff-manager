@@ -4,6 +4,7 @@ import GameEngine
 struct HomeView: View {
     @Environment(GameStore.self) private var store
     @State private var seasonSummary: SeasonSummary?
+    @State private var pendingJob: JobOffer?
 
     var body: some View {
         if let career = store.career {
@@ -16,8 +17,16 @@ struct HomeView: View {
         return ScrollView {
             VStack(spacing: 14) {
                 clubHeader(career, club: club)
-                if career.isTransferWindowOpen {
-                    windowBanner(career)
+                windowBanner(career)
+                ForEach(career.jobOffers) { offer in
+                    VStack(alignment: .leading, spacing: 6) {
+                        SectionTitle(text: L("job.offerTitle"))
+                        JobOfferCard(offer: offer, career: career) {
+                            pendingJob = offer
+                        } onDecline: {
+                            store.update { $0.declineJob(offer.id) }
+                        }
+                    }
                 }
                 if let cupMatch = career.nextUserCupMatch {
                     cupMatchBanner(cupMatch.cup, fixture: cupMatch.fixture, career: career)
@@ -37,6 +46,7 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                ManagerCard(career: career)
                 topPerformers(career)
                 inboxPreview(career)
             }
@@ -53,6 +63,18 @@ struct HomeView: View {
             WeekReportSheet(report: box.report) { summary in
                 seasonSummary = summary
             }
+        }
+        .confirmationDialog(
+            L("job.confirm"),
+            isPresented: Binding(get: { pendingJob != nil }, set: { if !$0 { pendingJob = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingJob
+        ) { offer in
+            Button(L("job.accept")) {
+                withAnimation { store.update { $0.acceptJob(offer.id) } }
+            }
+        } message: { offer in
+            Text(L("job.confirmBody", career.club(offer.clubID)?.name ?? ""))
         }
         .alert(
             L("season.over.title"),
@@ -85,17 +107,27 @@ struct HomeView: View {
     }
 
     private func windowBanner(_ career: Career) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "arrow.left.arrow.right.circle.fill")
-            Text(L("home.windowOpen"))
+        let status = career.transferWindowStatus
+        let text: String
+        if status.isOpen {
+            text = L("home.windowOpenFor", String(status.weeksLeft ?? 0))
+        } else if let opensIn = status.opensIn {
+            text = L("home.windowOpensIn", String(opensIn))
+        } else {
+            text = L("home.windowNextSummer")
+        }
+        return HStack(spacing: 8) {
+            Image(systemName: status.isOpen ? "arrow.left.arrow.right.circle.fill" : "lock.fill")
+            Text(text)
+                .lineLimit(2)
             Spacer()
             if !career.pendingOffers.isEmpty {
                 Chip(text: L("home.offers", String(career.pendingOffers.count)), color: Theme.goldLight)
             }
         }
         .font(.subheadline.weight(.semibold))
-        .foregroundStyle(Theme.positive)
-        .gameCard(padding: 10, highlight: Theme.positive.opacity(0.6))
+        .foregroundStyle(status.isOpen ? Theme.positive : Theme.textMuted)
+        .gameCard(padding: 10, highlight: status.isOpen ? Theme.positive.opacity(0.6) : nil)
     }
 
     private func nextMatchCard(_ career: Career) -> some View {

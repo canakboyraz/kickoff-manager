@@ -156,6 +156,58 @@ enum MessageText {
                 title: L("msg.cupWon.title", kind.label),
                 body: L("msg.cupWon.body", kind.label, Fmt.money(prize))
             )
+        case .offerImproved(let offerID):
+            guard let offer = career.offer(offerID) else {
+                return Content(icon: "arrow.up.circle.fill", color: Theme.goldLight, title: L("msg.offerImproved.title"), body: "")
+            }
+            return Content(
+                icon: "arrow.up.circle.fill", color: Theme.goldLight,
+                title: L("msg.offerImproved.title"),
+                body: L("msg.offerImproved.body", clubName(offer.fromClubID), playerName(offer.playerID), Fmt.money(offer.fee))
+            )
+        case .transferWindowOpened(let winter, let weeks):
+            return Content(
+                icon: "lock.open.fill", color: Theme.positive,
+                title: winter ? L("msg.windowWinter.title") : L("msg.windowSummer.title"),
+                body: L("msg.windowOpen.body", String(weeks))
+            )
+        case .transferWindowClosed:
+            return Content(
+                icon: "lock.fill", color: Theme.textSecondary,
+                title: L("msg.windowClosed.title"),
+                body: L("msg.windowClosed.body")
+            )
+        case .boardWarning(let level):
+            return Content(
+                icon: "exclamationmark.triangle.fill", color: level >= 2 ? Theme.negative : Theme.warning,
+                title: level >= 2 ? L("msg.boardFinal.title") : L("msg.boardConcern.title"),
+                body: level >= 2 ? L("msg.boardFinal.body") : L("msg.boardConcern.body")
+            )
+        case .sacked(let clubID):
+            return Content(
+                icon: "door.left.hand.open", color: Theme.negative,
+                title: L("sacked.title"),
+                body: L("sacked.body", clubName(clubID))
+            )
+        case .jobOffer(_, let clubID):
+            return Content(
+                icon: "briefcase.fill", color: Theme.goldLight,
+                title: L("msg.jobOffer.title"),
+                body: L("msg.jobOffer.body", clubName(clubID))
+            )
+        case .newJob(let clubID):
+            return Content(
+                icon: "hand.wave.fill", color: Theme.positive,
+                title: L("msg.newJob.title"),
+                body: L("msg.newJob.body", clubName(clubID))
+            )
+        case .seasonReview(let expected, let position, let confidence):
+            let tone: Color = position <= expected ? Theme.positive : (position - expected <= 3 ? Theme.warning : Theme.negative)
+            return Content(
+                icon: "person.3.sequence.fill", color: tone,
+                title: L("msg.review.title"),
+                body: L("msg.review.body", String(expected), String(position), ConfidenceStyle.label(confidence))
+            )
         }
     }
 }

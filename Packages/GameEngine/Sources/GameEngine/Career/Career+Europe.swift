@@ -240,6 +240,7 @@ extension Career {
                 }
                 if winner == userClubID {
                     post(.cupWon(kind: cup.kind, prize: prizes.winner))
+                    recordCupResult(cup.kind, stage: .winner, won: true)
                 } else if final.involves(userClubID) {
                     post(.cupEliminated(kind: cup.kind, stage: .final))
                 }
@@ -265,8 +266,10 @@ extension Career {
         }
         if advancing.contains(userClubID) {
             post(.cupProgress(kind: kind, stage: stage, prize: prize))
+            recordCupResult(kind, stage: stage, won: false)
         } else if previous.contains(userClubID) {
             post(.cupEliminated(kind: kind, stage: eliminatedAt))
+            if eliminatedAt == .group && kind == .eliteCup { adjustBoardConfidence(-3) }
         }
     }
 }

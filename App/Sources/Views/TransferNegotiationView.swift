@@ -208,7 +208,7 @@ struct NegotiationSheet: View {
                     InfoRow(title: L("talks.lastCounter"), value: Fmt.money(counter), color: Theme.goldLight)
                 }
                 InfoRow(title: L("talks.funds"), value: Fmt.money(funds), color: funds < Int(fee) ? Theme.negative : Theme.textPrimary)
-                PatienceDots(value: talk?.patience ?? 3)
+                PatienceDots(value: talk?.patience ?? Career.talkPatience, maxValue: Career.talkPatience)
             }
             .gameCard()
             VStack(spacing: 6) {
@@ -279,7 +279,7 @@ struct NegotiationSheet: View {
                     InfoRow(title: L("talks.wageCounter"), value: Fmt.wage(counter), color: Theme.goldLight)
                 }
                 InfoRow(title: L("transfers.wageRoom"), value: Fmt.wage(room), color: room < Int(wage) ? Theme.negative : Theme.textPrimary)
-                PatienceDots(value: talk?.contractPatience ?? 3)
+                PatienceDots(value: talk?.contractPatience ?? Career.contractTalkPatience, maxValue: Career.contractTalkPatience)
             }
             .gameCard()
             VStack(spacing: 6) {

@@ -35,13 +35,18 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if store.career != nil {
-                MainTabView()
+            if let career = store.career {
+                if career.isUnemployed {
+                    SackedView()
+                } else {
+                    MainTabView()
+                }
             } else {
                 NewCareerView()
             }
         }
         .animation(.easeInOut, value: store.career == nil)
+        .animation(.easeInOut, value: store.career?.isUnemployed ?? false)
     }
 }
 

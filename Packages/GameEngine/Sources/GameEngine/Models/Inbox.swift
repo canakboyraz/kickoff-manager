@@ -19,6 +19,17 @@ public enum InboxKind: Codable, Hashable, Sendable {
     case cupProgress(kind: CompetitionKind, stage: CupStage, prize: Int)
     case cupEliminated(kind: CompetitionKind, stage: CupStage)
     case cupWon(kind: CompetitionKind, prize: Int)
+    /// A bidding club improved its offer without being asked.
+    case offerImproved(offerID: UUID)
+    case transferWindowOpened(winter: Bool, weeks: Int)
+    case transferWindowClosed
+    /// The board is unhappy (1) or issuing a final warning (2).
+    case boardWarning(level: Int)
+    case sacked(clubID: UUID)
+    case jobOffer(offerID: UUID, clubID: UUID)
+    case newJob(clubID: UUID)
+    /// End-of-season verdict: where the board expected the club to finish and where it did.
+    case seasonReview(expected: Int, position: Int, confidence: Int)
 }
 
 public struct InboxMessage: Codable, Hashable, Identifiable, Sendable {

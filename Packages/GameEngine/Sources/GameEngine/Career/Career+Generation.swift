@@ -83,6 +83,9 @@ extension Career {
             userTactics: Tactics(formation: .f433, starters: [], bench: []),
             talks: [:],
             cups: [],
+            manager: Manager(reputation: 40, boardConfidence: 60, trophies: 0, timesSacked: 0, seasonsManaged: 0, warningLevel: 0),
+            jobOffers: [],
+            isUnemployed: false,
             rng: rng
         )
 
@@ -104,6 +107,9 @@ extension Career {
         talks.removeAll()
         userTactics = Tactics(formation: club.formation, starters: [], bench: [])
         autoPickLineup()
+        manager = Manager.starting(at: club)
+        jobOffers.removeAll()
+        isUnemployed = false
         post(.boardWelcome)
         if let cup = cups.first(where: { $0.clubIDs.contains(clubID) }) {
             post(.cupQualified(kind: cup.kind, season: season))

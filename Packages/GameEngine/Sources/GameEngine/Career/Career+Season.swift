@@ -32,6 +32,11 @@ extension Career {
     public mutating func advanceWeek() -> WeekReport {
         let known = Set(inbox.map(\.id))
         let matchday = week + 1
+        // A sacked manager has no team to play with until a new job is accepted.
+        guard !isUnemployed else {
+            return WeekReport(matchday: week, userFixture: nil, userCupFixture: nil, userCupKind: nil,
+                              newMessages: [], finishedSeason: nil)
+        }
         normalizeUserTactics()
         var injuredThisWeek = Set<UUID>()
 
@@ -56,6 +61,11 @@ extension Career {
             }
         }
         week = matchday
+        announceTransferWindows()
+        if matchday % 4 == 0 { reviewLeaguePosition() }
+        checkJobSecurity()
+        expireJobOffers()
+        if matchday == matchdayCount / 2 { considerJobOffers(seasonEnd: false) }
 
         tickInjuries(excluding: injuredThisWeek)
         weeklyFinances()
@@ -82,6 +92,7 @@ extension Career {
             let closing = closeSeason()
             summary = closing.summary
             startNewSeason(qualifiers: closing.qualifiers)
+            considerJobOffers(seasonEnd: true)
         }
         normalizeUserTactics()
 
@@ -108,6 +119,11 @@ extension Career {
         rng = generator
 
         leagues[leagueIndex].fixtures[fixtureIndex].result = outcome.result
+        if home.id == userClubID {
+            updateBoardAfterMatch(scored: outcome.result.homeGoals, conceded: outcome.result.awayGoals, opponentID: away.id)
+        } else if away.id == userClubID {
+            updateBoardAfterMatch(scored: outcome.result.awayGoals, conceded: outcome.result.homeGoals, opponentID: home.id)
+        }
         let gate = outcome.result.attendance * home.stadium.ticketPrice
         clubs[home.id]?.finances.balance += gate
         clubs[home.id]?.finances.seasonIncome += gate
@@ -249,6 +265,7 @@ extension Career {
                     history.append(summary)
                     userSummary = summary
                     post(.seasonEnded(season: season, position: index + 1, prizeMoney: prize))
+                    reviewSeason(expected: expected + 1, position: index + 1)
                 }
             }
         }
@@ -292,7 +309,7 @@ extension Career {
             }
 
             guard player.contract.expiresSeason <= season else { continue }
-            if player.clubID == userClubID {
+            if player.clubID == userClubID && !isUnemployed {
                 // Contracts the user didn't renew run out: the player leaves for free.
                 removePlayer(id, leftTo: nil, fee: 0)
             } else if rng.chance(0.85) {
@@ -359,7 +376,7 @@ extension Career {
     /// AI clubs top up thin squads and release surplus players so the world stays healthy.
     mutating func maintainAISquads() {
         let nextSeason = season + 1
-        for clubID in clubs.keys where clubID != userClubID {
+        for clubID in clubs.keys where clubID != userClubID || isUnemployed {
             guard let club = clubs[clubID] else { continue }
             let average = Career.averageOverall(reputation: club.reputation)
 
@@ -411,5 +428,8 @@ extension Career {
         offers.removeAll { $0.status != .pending }
         talks.removeAll()
         setUpCups(qualifiers: qualifiers)
+        if !isUnemployed {
+            post(.transferWindowOpened(winter: false, weeks: Career.summerWindowWeeks))
+        }
     }
 }

@@ -75,16 +75,19 @@ public struct TransferFilter: Equatable, Sendable {
 
 extension Career {
     public static let maxSquadSize = 32
-    static let talkPatience = 3
+    /// Rounds the selling club listens to before walking away.
+    public static let talkPatience = 5
+    /// Rounds the player listens to during contract talks.
+    public static let contractTalkPatience = 4
 
     // MARK: - Prices
 
     /// What the selling club asks for a player.
     public func askingPrice(for playerID: UUID) -> Int {
         guard let player = players[playerID], let clubID = player.clubID, let club = clubs[clubID] else { return 0 }
-        var price = Double(player.marketValue(season: season)) * (1.15 + Double(club.reputation) / 400)
+        var price = Double(player.marketValue(season: season)) * (1.05 + Double(club.reputation) / 500)
         let bestThree = squad(of: clubID).sorted { $0.overall > $1.overall }.prefix(3).map(\.id)
-        if bestThree.contains(playerID) { price *= 1.25 }
+        if bestThree.contains(playerID) { price *= 1.15 }
         if player.contract.expiresSeason <= season { price *= 0.7 }
         return max(50_000, Career.roundTo(price, step: 50_000))
     }
@@ -94,7 +97,7 @@ extension Career {
         guard let player = players[playerID] else { return 0 }
         var demand = max(Double(player.expectedWage(season: season)) * 1.1, Double(player.contract.weeklyWage) * 1.15)
         if let sellerID = player.clubID, let seller = clubs[sellerID] {
-            demand *= 1 + Double(max(0, seller.reputation - userClub.reputation)) / 150
+            demand *= 1 + Double(max(0, seller.reputation - userClub.reputation)) / 220
         }
         return Career.roundUp(demand, step: 500)
     }
@@ -102,7 +105,7 @@ extension Career {
     /// Stars far above the club's level refuse to join.
     public func isInterestedInJoining(_ playerID: UUID) -> Bool {
         guard let player = players[playerID] else { return false }
-        return Double(player.overall) <= Career.averageOverall(reputation: userClub.reputation) + 12
+        return Double(player.overall) <= Career.averageOverall(reputation: userClub.reputation) + 15
     }
 
     /// Money the user can actually spend on a fee right now.
@@ -114,9 +117,9 @@ extension Career {
         talks[playerID]
     }
 
-    /// Lowest share of the asking price this club will accept (0.84–0.96, fixed per player).
+    /// Lowest share of the asking price this club will accept (0.72–0.87, fixed per player).
     func sellerFloor(for playerID: UUID) -> Double {
-        0.84 + Double(playerID.uuid.0 % 13) / 100
+        0.72 + Double(playerID.uuid.0 % 16) / 100
     }
 
     static func roundUp(_ value: Double, step: Int) -> Int {
@@ -150,29 +153,33 @@ extension Career {
 
         var talk = talks[playerID] ?? TransferTalks(
             playerID: playerID, agreedFee: nil, lastCounter: nil, lastWageCounter: nil,
-            patience: Career.talkPatience, contractPatience: Career.talkPatience, isClosed: false
+            patience: Career.talkPatience, contractPatience: Career.contractTalkPatience, isClosed: false
         )
         guard !talk.isClosed else { return .walkedAway }
         if let agreed = talk.agreedFee, fee >= agreed { return .agreed(fee: agreed) }
 
         let asking = askingPrice(for: playerID)
         let floor = Career.roundTo(Double(asking) * sellerFloor(for: playerID), step: 50_000)
-        if fee >= floor || (talk.lastCounter.map { fee >= $0 } ?? false) {
+        // Close to their floor the club is sometimes happy to do business.
+        let closeEnough = Double(fee) >= Double(floor) * 0.93 && rng.chance(0.35)
+        if fee >= floor || closeEnough || (talk.lastCounter.map { fee >= $0 } ?? false) {
             talk.agreedFee = fee
             talks[playerID] = talk
             return .agreed(fee: fee)
         }
 
-        let insulted = Double(fee) < Double(asking) * 0.55
-        talk.patience -= insulted ? 2 : 1
+        let insulted = Double(fee) < Double(asking) * 0.45
+        talk.patience -= 1
         if talk.patience <= 0 {
             talk.isClosed = true
             talks[playerID] = talk
             return .walkedAway
         }
-        // Each round the club comes down a little, never below its floor.
+        // Each round the club meets the bid part of the way (more when the bid is serious),
+        // never below its floor and never above its previous demand.
         let anchor = talk.lastCounter ?? asking
-        let counter = max(floor, Career.roundTo(Double(anchor) - Double(anchor - fee) * 0.3, step: 50_000))
+        let step = insulted ? rng.double(0.1...0.25) : rng.double(0.35...0.6)
+        let counter = min(anchor, max(floor, Career.roundTo(Double(anchor) - Double(anchor - fee) * step, step: 50_000)))
         talk.lastCounter = counter
         talks[playerID] = talk
         return .counter(fee: counter, insulted: insulted)
@@ -196,7 +203,7 @@ extension Career {
 
         let contractYears = years.clamped(to: 1...5)
         let demand = Double(wageDemand(for: playerID))
-        var required = demand * 0.93
+        var required = demand * 0.85
         // Older players want security; young players don't like being tied down too long.
         let age = player.age(in: season)
         if age >= 29 && contractYears <= 1 { required *= 1.1 }
@@ -222,8 +229,9 @@ extension Career {
             return .walkedAway
         }
         let anchor = Double(talk.lastWageCounter ?? Career.roundUp(demand, step: 500))
+        let step = rng.double(0.35...0.6)
         let counter = max(Career.roundUp(required, step: 500),
-                          Career.roundUp(anchor - (anchor - Double(weeklyWage)) * 0.25, step: 500))
+                          Career.roundUp(anchor - (anchor - Double(weeklyWage)) * step, step: 500))
         talk.lastWageCounter = counter
         talks[playerID] = talk
         return .counter(weeklyWage: counter)
@@ -291,12 +299,12 @@ extension Career {
             return .accepted(fee: finalFee)
         }
         offer.rounds += 1
-        if Double(fee) > Double(offer.maxFee) * 1.5 || offer.rounds >= 3 {
+        if Double(fee) > Double(offer.maxFee) * 2 || offer.rounds >= 4 {
             offer.status = .withdrawn
             offers[index] = offer
             return .withdrawn
         }
-        let raised = Career.roundTo(Double(offer.fee) + Double(offer.maxFee - offer.fee) * 0.6, step: 50_000)
+        let raised = Career.roundTo(Double(offer.fee) + Double(offer.maxFee - offer.fee) * rng.double(0.4...0.8), step: 50_000)
         offer.fee = min(offer.maxFee, max(offer.fee + 50_000, raised))
         offer.expiresWeek = week + 2
         offers[index] = offer
@@ -342,8 +350,17 @@ extension Career {
         let candidates = userSquad.filter { !$0.isInjured && !pending.contains($0.id) }
         guard candidates.count > 14 else { return }
 
+        // Clubs sometimes improve a bid on their own.
+        for index in offers.indices where offers[index].status == .pending && offers[index].fee < offers[index].maxFee {
+            guard rng.chance(0.3) else { continue }
+            let improved = Career.roundTo(Double(offers[index].fee) * rng.double(1.05...1.15), step: 50_000)
+            offers[index].fee = min(offers[index].maxFee, max(offers[index].fee + 50_000, improved))
+            offers[index].expiresWeek = week + 2
+            post(.offerImproved(offerID: offers[index].id))
+        }
+
         let unlisted = candidates.filter { !$0.isTransferListed }
-        if rng.chance(0.45), !unlisted.isEmpty {
+        if rng.chance(0.6), !unlisted.isEmpty {
             let weights = unlisted.map { pow(1.12, Double($0.overall - 50)) * (1 + Double(max(0, $0.potential - $0.overall)) / 20) }
             if let index = rng.weightedIndex(weights) {
                 makeOffer(for: unlisted[index], factor: rng.double(0.9...1.3), listed: false)
@@ -367,7 +384,7 @@ extension Career {
         }
         guard !buyers.isEmpty else { return }
         let buyer = rng.pick(buyers.sorted { $0.name < $1.name })
-        let ceiling = Career.roundTo(Double(fee) * rng.double(1.08...1.35), step: 50_000)
+        let ceiling = Career.roundTo(Double(fee) * rng.double(1.15...1.5), step: 50_000)
         let maxFee = max(fee, min(buyer.finances.transferBudget, ceiling))
 
         let offer = IncomingOffer(
