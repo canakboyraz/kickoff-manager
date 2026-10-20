@@ -2,6 +2,8 @@ import XCTest
 @testable import GameEngine
 
 final class GameEngineTests: XCTestCase {
+    // MARK: - World
+
     func testWorldGeneration() {
         let career = Career.generate(seed: 42)
         XCTAssertEqual(career.leagues.count, 5)
@@ -12,6 +14,7 @@ final class GameEngineTests: XCTestCase {
         }
         XCTAssertEqual(career.clubs.count, 90)
         XCTAssertEqual(career.players.count, 90 * 24)
+        XCTAssertTrue(career.players.values.allSatisfy { $0.fitness == 100 && !$0.isTransferListed })
     }
 
     func testEveryClubPlaysOncePerMatchday() {
@@ -21,7 +24,6 @@ final class GameEngineTests: XCTestCase {
                 let ids = league.fixtures(on: matchday).flatMap { [$0.homeID, $0.awayID] }
                 XCTAssertEqual(Set(ids).count, 18, "matchday \(matchday)")
             }
-            // Each pairing happens exactly twice, once at each ground.
             let pairs = league.fixtures.map { "\($0.homeID)-\($0.awayID)" }
             XCTAssertEqual(Set(pairs).count, league.fixtures.count)
         }
@@ -34,51 +36,142 @@ final class GameEngineTests: XCTestCase {
         XCTAssertLessThan(overalls.max() ?? 100, 96)
         for player in career.players.values {
             XCTAssertGreaterThanOrEqual(player.potential, player.overall)
+            XCTAssertEqual(player.topAttributes.count, 3)
         }
     }
 
+    // MARK: - Matches
+
     func testStrongerTeamsWinMoreOften() {
-        var career = Career.generate(seed: 11)
+        let career = Career.generate(seed: 11)
         let league = career.leagues[1]
         let strongest = league.clubIDs.max { career.clubs[$0]!.reputation < career.clubs[$1]!.reputation }!
         let weakest = league.clubIDs.min { career.clubs[$0]!.reputation < career.clubs[$1]!.reputation }!
+        let strongSheet = Selection.autoSheet(squad: career.squad(of: strongest), formation: .f433)
+        let weakSheet = Selection.autoSheet(squad: career.squad(of: weakest), formation: .f433)
         var rng = SeededRandom(seed: 99)
         var strongWins = 0
         var weakWins = 0
+        var substitutions = 0
         for _ in 0..<200 {
             let outcome = MatchEngine.play(
-                home: career.clubs[strongest]!,
-                away: career.clubs[weakest]!,
-                homeSquad: career.squad(of: strongest),
-                awaySquad: career.squad(of: weakest),
-                rng: &rng
+                home: career.clubs[strongest]!, away: career.clubs[weakest]!,
+                homeSheet: strongSheet, awaySheet: weakSheet, rng: &rng
             )
             if outcome.result.homeGoals > outcome.result.awayGoals { strongWins += 1 }
             if outcome.result.homeGoals < outcome.result.awayGoals { weakWins += 1 }
+            substitutions += outcome.result.events.filter { $0.kind == .substitution }.count
+            let minutes = outcome.result.ratings.filter { $0.clubID == strongest }.map(\.minutes).reduce(0, +)
+            XCTAssertEqual(minutes, 11 * 90, "minutes on the pitch add up to eleven full players")
         }
         XCTAssertGreaterThan(strongWins, weakWins * 3)
-        career.chooseClub(weakest)
-        XCTAssertEqual(career.userClubID, weakest)
+        XCTAssertGreaterThan(substitutions, 200 * 2 * 2 - 1)
     }
 
-    func testFullSeasonRunsAndRollsOver() throws {
+    func testTiredPlayersAreWorse() {
+        let career = Career.generate(seed: 12)
+        var player = career.userSquad.first { $0.position == .striker }!
+        let fresh = Selection.rating(of: player, in: .striker)
+        player.fitness = 55
+        XCTAssertLessThan(Selection.rating(of: player, in: .striker), fresh - 5)
+    }
+
+    // MARK: - Lineup
+
+    func testUserLineupEditing() {
+        var career = Career.generate(seed: 21)
+        career.chooseClub(career.leagues[0].clubIDs[4])
+        XCTAssertEqual(career.userStarters.compactMap { $0 }.count, 11)
+        XCTAssertEqual(career.userBench.count, Tactics.benchSize)
+
+        // Bring a reserve into the side.
+        let reserve = career.userReserves.first!
+        let replaced = career.userStarters[3]!
+        career.swapLineup(.starter(3), .reserve(reserve.id))
+        XCTAssertEqual(career.userStarters[3]?.id, reserve.id)
+        XCTAssertTrue(career.userReserves.contains { $0.id == replaced.id })
+
+        // Swap a starter with a substitute.
+        let sub = career.userBench[0]
+        career.swapLineup(.bench(0), .starter(0))
+        XCTAssertEqual(career.userStarters[0]?.id, sub.id)
+        XCTAssertFalse(career.userBench.contains { $0.id == sub.id })
+
+        // The team sheet uses exactly the chosen eleven when everyone is fit.
+        let sheet = career.teamSheet(for: career.userClubID)
+        XCTAssertEqual(sheet.starters.map(\.player.id), career.userStarters.compactMap { $0?.id })
+
+        // Changing formation keeps eleven starters.
+        career.setFormation(.f352)
+        XCTAssertEqual(career.userTactics.formation, .f352)
+        XCTAssertEqual(career.userStarters.compactMap { $0 }.count, 11)
+    }
+
+    func testInjuredStarterIsReplacedAtKickOff() {
+        var career = Career.generate(seed: 22)
+        career.chooseClub(career.leagues[0].clubIDs[2])
+        let starter = career.userStarters[5]!
+        career.players[starter.id]?.injuryWeeks = 3
+        let sheet = career.teamSheet(for: career.userClubID)
+        XCTAssertEqual(sheet.starters.count, 11)
+        XCTAssertFalse(sheet.starters.contains { $0.player.id == starter.id })
+    }
+
+    // MARK: - Season and Europe
+
+    func testFullSeasonWithEuropeanCups() {
         var career = Career.generate(seed: 5)
         career.chooseClub(career.leagues[0].clubIDs[5])
         let startSeason = career.season
-        var summary: SeasonSummary?
-        for _ in 0..<career.matchdayCount {
-            let report = career.advanceWeek()
-            if let finished = report.finishedSeason { summary = finished }
+        XCTAssertEqual(career.cups.count, 2)
+        for cup in career.cups {
+            XCTAssertEqual(cup.clubIDs.count, 16)
+            XCTAssertEqual(Set(cup.clubIDs).count, 16)
+            XCTAssertEqual(cup.groups.count, 4)
+            XCTAssertEqual(cup.fixtures(in: .group).count, 4 * 12)
         }
-        XCTAssertNotNil(summary)
+        // A club can't be in both cups.
+        XCTAssertTrue(Set(career.cups[0].clubIDs).isDisjoint(with: career.cups[1].clubIDs))
+
+        var playedFitnessDrop = false
+        for _ in 0..<(career.matchdayCount - 1) {
+            career.advanceWeek()
+            if career.userSquad.contains(where: { $0.fitness < 100 }) { playedFitnessDrop = true }
+        }
+        XCTAssertTrue(playedFitnessDrop)
+        for cup in career.cups {
+            XCTAssertNotNil(cup.winnerID, "\(cup.kind) should be decided by week 30")
+            XCTAssertEqual(cup.fixtures(in: .quarterFinal).count, 8)
+            XCTAssertEqual(cup.fixtures(in: .semiFinal).count, 4)
+            XCTAssertEqual(cup.fixtures(in: .final).count, 1)
+            XCTAssertTrue(cup.fixtures.allSatisfy { $0.result != nil })
+        }
+
+        let report = career.advanceWeek()
+        XCTAssertNotNil(report.finishedSeason)
         XCTAssertEqual(career.season, startSeason + 1)
         XCTAssertEqual(career.week, 0)
         XCTAssertEqual(career.history.count, 1)
         XCTAssertTrue(career.leagues.allSatisfy { $0.fixtures.allSatisfy { $0.result == nil } })
-        // Squads stay playable after retirements, expiries and youth intake.
+        XCTAssertEqual(career.cups.count, 2)
+        XCTAssertTrue(career.cups.allSatisfy { $0.season == startSeason + 1 && $0.clubIDs.count == 16 })
         for club in career.clubs.values where club.id != career.userClubID {
             XCTAssertGreaterThanOrEqual(club.playerIDs.count, 20)
         }
+    }
+
+    func testQualificationUsesLeaguePlaces() {
+        let ids = (0..<18).map { _ in UUID() }
+        let rankings = (0..<5).map { index in
+            (strength: 1.0 - Double(index) * 0.01, order: index == 2 ? ids : (0..<18).map { _ in UUID() })
+        }
+        let qualifiers = Career.europeanQualifiers(rankings: rankings)
+        XCTAssertEqual(qualifiers[.eliteCup]?.count, 16)
+        XCTAssertEqual(qualifiers[.continentalLeague]?.count, 16)
+        // Third strongest league: places 1–3 to the Elite Cup, 4–6 to the Continental League.
+        XCTAssertTrue(Array(ids[0..<3]).allSatisfy { qualifiers[.eliteCup]!.contains($0) })
+        XCTAssertTrue(Array(ids[3..<6]).allSatisfy { qualifiers[.continentalLeague]!.contains($0) })
+        XCTAssertFalse(qualifiers[.continentalLeague]!.contains(ids[6]))
     }
 
     func testSaveRoundTrip() throws {
@@ -90,23 +183,70 @@ final class GameEngineTests: XCTestCase {
         XCTAssertEqual(decoded.userClubID, career.userClubID)
         XCTAssertEqual(decoded.week, 1)
         XCTAssertEqual(decoded.players.count, career.players.count)
+        XCTAssertEqual(decoded.userTactics, career.userTactics)
+        XCTAssertEqual(decoded.cups.count, career.cups.count)
     }
 
-    func testBuyingAPlayer() {
-        var career = Career.generate(seed: 21)
+    // MARK: - Transfers
+
+    func testFeeNegotiationAndSigning() {
+        var career = Career.generate(seed: 31)
         let myClub = career.leagues[0].clubIDs[0]
         career.chooseClub(myClub)
-        let target = career.marketPlayers(filter: TransferFilter(maxPrice: 3_000_000)).first!
+        let target = career.marketPlayers(filter: TransferFilter(maxPrice: 2_000_000))
+            .first { career.isInterestedInJoining($0.id) && career.askingPrice(for: $0.id) <= career.availableTransferFunds }!
         let asking = career.askingPrice(for: target.id)
-        let outcome = career.placeBid(playerID: target.id, fee: asking)
-        if case .accepted = outcome {
-            XCTAssertEqual(career.player(target.id)?.clubID, myClub)
-            XCTAssertTrue(career.userClub.playerIDs.contains(target.id))
-        } else {
-            // Only budget limits may block a full-price bid.
-            XCTAssertTrue([.insufficientBudget, .wageBudgetExceeded].contains(outcome), "\(outcome)")
+
+        // A low bid gets a counter-offer between the bid and the asking price.
+        let lowBid = Career.roundTo(Double(asking) * 0.7, step: 50_000)
+        guard case .counter(let counter, _) = career.negotiateFee(playerID: target.id, fee: lowBid) else {
+            return XCTFail("expected a counter-offer")
         }
-        XCTAssertEqual(career.placeBid(playerID: target.id, fee: 0), .unavailable)
+        XCTAssertGreaterThan(counter, lowBid)
+        XCTAssertLessThanOrEqual(counter, asking)
+
+        // Meeting the counter agrees the fee.
+        XCTAssertEqual(career.negotiateFee(playerID: target.id, fee: counter), .agreed(fee: counter))
+
+        // A stingy wage gets a counter; meeting the demand signs him.
+        let demand = career.wageDemand(for: target.id)
+        if case .counter(let wageCounter) = career.offerContract(playerID: target.id, weeklyWage: demand / 2, years: 3) {
+            XCTAssertGreaterThan(wageCounter, demand / 2)
+        }
+        let outcome = career.offerContract(playerID: target.id, weeklyWage: demand, years: 3)
+        if case .signed = outcome {
+            XCTAssertEqual(career.player(target.id)?.clubID, myClub)
+            XCTAssertNil(career.negotiation(for: target.id))
+        } else {
+            XCTAssertEqual(outcome, .wageBudgetExceeded)
+        }
+    }
+
+    func testClubWalksAwayAfterInsultingBids() {
+        var career = Career.generate(seed: 32)
+        career.chooseClub(career.leagues[1].clubIDs[0])
+        let target = career.marketPlayers(filter: TransferFilter(maxPrice: 3_000_000)).first!
+        _ = career.negotiateFee(playerID: target.id, fee: 50_000)
+        let second = career.negotiateFee(playerID: target.id, fee: 50_000)
+        XCTAssertEqual(second, .walkedAway)
+        XCTAssertEqual(career.negotiateFee(playerID: target.id, fee: 50_000_000 / 100), .walkedAway)
+    }
+
+    func testIncomingOfferCounter() {
+        var career = Career.generate(seed: 33)
+        career.chooseClub(career.leagues[0].clubIDs[8])
+        let player = career.userSquad.sorted { $0.overall > $1.overall }[3]
+        career.setTransferListed(player.id, listed: true)
+        XCTAssertTrue(career.transferListedPlayers.contains { $0.id == player.id })
+
+        career.makeOffer(for: player, factor: 0.9, listed: true)
+        guard let offer = career.pendingOffers.first(where: { $0.playerID == player.id }) else { return }
+        // Asking for slightly more than they bid (but within their limit) sells the player.
+        let response = career.counterOffer(offer.id, fee: offer.maxFee)
+        XCTAssertEqual(response, .accepted(fee: offer.maxFee))
+        XCTAssertEqual(career.player(player.id)?.clubID, offer.fromClubID)
+        XCTAssertEqual(career.player(player.id)?.isTransferListed, false)
+        XCTAssertFalse(career.userStarters.contains { $0?.id == player.id })
     }
 
     func testFacilityUpgradeCompletes() {

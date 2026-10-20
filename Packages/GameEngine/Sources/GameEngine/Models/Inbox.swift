@@ -4,7 +4,7 @@ import Foundation
 public enum InboxKind: Codable, Hashable, Sendable {
     /// Another club wants to buy one of the user's players.
     case transferOffer(offerID: UUID)
-    /// A player arrived (the user's bid was accepted).
+    /// A player arrived.
     case signingCompleted(playerID: UUID, fee: Int)
     /// A player left the club (sold or contract expired).
     case playerLeft(playerID: UUID, toClubID: UUID?, fee: Int)
@@ -14,6 +14,11 @@ public enum InboxKind: Codable, Hashable, Sendable {
     case contractExpiring(playerID: UUID)
     case seasonEnded(season: Int, position: Int, prizeMoney: Int)
     case boardWelcome
+    /// The club plays in a European cup in `season`.
+    case cupQualified(kind: CompetitionKind, season: Int)
+    case cupProgress(kind: CompetitionKind, stage: CupStage, prize: Int)
+    case cupEliminated(kind: CompetitionKind, stage: CupStage)
+    case cupWon(kind: CompetitionKind, prize: Int)
 }
 
 public struct InboxMessage: Codable, Hashable, Identifiable, Sendable {
@@ -25,7 +30,7 @@ public struct InboxMessage: Codable, Hashable, Identifiable, Sendable {
 }
 
 public enum OfferStatus: String, Codable, Hashable, Sendable {
-    case pending, accepted, rejected, expired
+    case pending, accepted, rejected, expired, withdrawn
 }
 
 /// A bid from an AI club for one of the user's players.
@@ -36,4 +41,8 @@ public struct IncomingOffer: Codable, Hashable, Identifiable, Sendable {
     public var fee: Int
     public var expiresWeek: Int
     public var status: OfferStatus
+    /// Most the bidding club is prepared to pay (hidden from the user).
+    var maxFee: Int
+    /// Counter-offers the user has made so far.
+    var rounds: Int
 }

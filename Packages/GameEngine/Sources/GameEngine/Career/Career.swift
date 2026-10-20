@@ -1,25 +1,9 @@
 import Foundation
 
-public struct SeasonSummary: Codable, Hashable, Sendable {
-    public var season: Int
-    public var leagueName: String
-    public var position: Int
-    public var points: Int
-    public var prizeMoney: Int
-}
-
-/// What happened when the user pressed "play week".
-public struct WeekReport: Sendable {
-    public var matchday: Int
-    public var userFixture: Fixture?
-    public var newMessages: [InboxMessage]
-    /// Set when this week was the last matchday; the next season has already started.
-    public var finishedSeason: SeasonSummary?
-}
-
 /// The whole save game. Value type: the app keeps one copy, mutates it and writes it to disk as JSON.
 public struct Career: Codable, Sendable {
-    public static let currentVersion = 1
+    /// Bumped whenever the save format changes; older saves are not loaded.
+    public static let currentVersion = 2
 
     public var version: Int
     /// Year the current season started in (e.g. 2026 for 2026/27).
@@ -33,6 +17,10 @@ public struct Career: Codable, Sendable {
     public internal(set) var inbox: [InboxMessage]
     public internal(set) var offers: [IncomingOffer]
     public internal(set) var history: [SeasonSummary]
+    public internal(set) var userTactics: Tactics
+    public internal(set) var talks: [UUID: TransferTalks]
+    /// This season's European cups.
+    public internal(set) var cups: [Cup]
     var rng: SeededRandom
 }
 
@@ -65,8 +53,6 @@ extension Career {
     }
 
     public var userSquad: [Player] { squad(of: userClubID) }
-
-    public var userLineup: [LineupSlot] { MatchEngine.bestLineup(from: userSquad) }
 
     public func wageBill(of clubID: UUID) -> Int {
         (clubs[clubID]?.playerIDs ?? []).compactMap { players[$0]?.contract.weeklyWage }.reduce(0, +)
@@ -107,6 +93,48 @@ extension Career {
     }
 
     public var userLeaguePosition: Int? { userLeague.position(of: userClubID) }
+
+    // MARK: Cups
+
+    public func cup(_ kind: CompetitionKind) -> Cup? {
+        cups.first { $0.kind == kind }
+    }
+
+    /// The cup the user's club plays in this season, if any.
+    public var userCup: Cup? {
+        cups.first { $0.clubIDs.contains(userClubID) }
+    }
+
+    public func cupMatch(_ fixtureID: UUID) -> (cup: Cup, fixture: CupFixture)? {
+        for cup in cups {
+            if let fixture = cup.fixtures.first(where: { $0.id == fixtureID }) {
+                return (cup: cup, fixture: fixture)
+            }
+        }
+        return nil
+    }
+
+    /// The user's midweek cup game in the coming week.
+    public var nextUserCupMatch: (cup: Cup, fixture: CupFixture)? {
+        for cup in cups {
+            if let fixture = cup.fixtures.first(where: { $0.week == nextMatchday && $0.result == nil && $0.involves(userClubID) }) {
+                return (cup: cup, fixture: fixture)
+            }
+        }
+        return nil
+    }
+
+    public var lastUserCupMatch: (cup: Cup, fixture: CupFixture)? {
+        var best: (cup: Cup, fixture: CupFixture)?
+        for cup in cups {
+            for fixture in cup.fixtures where fixture.result != nil && fixture.involves(userClubID) {
+                if best == nil || fixture.week > best!.fixture.week {
+                    best = (cup: cup, fixture: fixture)
+                }
+            }
+        }
+        return best
+    }
 }
 
 // MARK: - Inbox

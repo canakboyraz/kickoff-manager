@@ -8,10 +8,16 @@ struct TransfersView: View {
     @State private var position: Position?
     @State private var maxAge = 40
     @State private var affordableOnly = true
+    @State private var counterTarget: OfferTarget?
+    @State private var notice: String?
 
     enum Mode: String, CaseIterable, Identifiable {
-        case market, offers
+        case market, offers, listed
         var id: String { rawValue }
+    }
+
+    struct OfferTarget: Identifiable {
+        let id: UUID
     }
 
     var body: some View {
@@ -32,6 +38,7 @@ struct TransfersView: View {
                     switch mode {
                     case .market: market(career)
                     case .offers: offers(career)
+                    case .listed: listed(career)
                     }
                 }
                 .padding(16)
@@ -41,6 +48,12 @@ struct TransfersView: View {
         .navigationTitle(L("tab.transfers"))
         .navigationBarTitleDisplayMode(.inline)
         .gameDestinations()
+        .sheet(item: $counterTarget) { target in
+            CounterOfferSheet(offerID: target.id) { message in notice = message }
+        }
+        .alert(notice ?? "", isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } })) {
+            Button(L("common.ok")) {}
+        }
     }
 
     private func budgetHeader(_ career: Career) -> some View {
@@ -169,14 +182,53 @@ struct TransfersView: View {
                                 store.update { $0.respond(to: offer.id, accept: false) }
                             }
                             .buttonStyle(OutlineButtonStyle(color: Theme.negative))
+                            Button(L("transfers.negotiate")) {
+                                counterTarget = OfferTarget(id: offer.id)
+                            }
+                            .buttonStyle(OutlineButtonStyle(color: Theme.goldLight))
                             Button(L("transfers.accept")) {
                                 store.update { $0.respond(to: offer.id, accept: true) }
+                                notice = L("counter.result.sold", player.fullName, Fmt.money(offer.fee))
                             }
                             .buttonStyle(OutlineButtonStyle(color: Theme.positive))
                         }
+                        Text(L("transfers.expires", String(max(0, offer.expiresWeek - career.week + 1))))
+                            .font(.caption2)
+                            .foregroundStyle(Theme.textMuted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .gameCard()
                 }
+            }
+        }
+    }
+
+    private func listed(_ career: Career) -> some View {
+        let players = career.transferListedPlayers
+        return VStack(spacing: 10) {
+            Text(L("transfers.listedHint"))
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if players.isEmpty {
+                Text(L("transfers.noListed"))
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 24)
+            }
+            ForEach(players) { player in
+                VStack(spacing: 8) {
+                    NavigationLink(value: PlayerLink(id: player.id)) {
+                        PlayerRow(player: player, season: career.season, trailing: Fmt.money(player.marketValue(season: career.season)))
+                    }
+                    .buttonStyle(.plain)
+                    Button(L("player.unlist")) {
+                        store.update { $0.setTransferListed(player.id, listed: false) }
+                    }
+                    .buttonStyle(OutlineButtonStyle(color: Theme.warning))
+                }
+                .gameCard()
             }
         }
     }

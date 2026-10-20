@@ -5,15 +5,37 @@ struct LeagueView: View {
     @Environment(GameStore.self) private var store
     @State private var leagueID: UUID?
     @State private var matchday: Int?
+    @State private var mode: Mode = .league
+
+    enum Mode: Hashable {
+        case league
+        case cup(CompetitionKind)
+    }
 
     var body: some View {
         ScrollView {
             if let career = store.career {
                 let league = leagueID.flatMap { career.league($0) } ?? career.userLeague
                 VStack(spacing: 14) {
-                    leaguePicker(career, selected: league)
-                    table(career, league: league)
-                    fixtures(career, league: league)
+                    if !career.cups.isEmpty {
+                        Picker("", selection: $mode) {
+                            Text(L("tab.league")).tag(Mode.league)
+                            ForEach(career.cups) { cup in
+                                Text(cup.kind.label).tag(Mode.cup(cup.kind))
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    switch mode {
+                    case .league:
+                        leaguePicker(career, selected: league)
+                        table(career, league: league)
+                        fixtures(career, league: league)
+                    case .cup(let kind):
+                        if let cup = career.cup(kind) {
+                            CupView(cup: cup, career: career)
+                        }
+                    }
                 }
                 .padding(16)
             }
@@ -46,6 +68,7 @@ struct LeagueView: View {
 
     private func table(_ career: Career, league: League) -> some View {
         let rows = league.table()
+        let places = career.europeanPlaces(in: league)
         return VStack(spacing: 0) {
             HStack(spacing: 6) {
                 Text("#").frame(width: 22, alignment: .leading)
@@ -64,7 +87,9 @@ struct LeagueView: View {
                     HStack(spacing: 6) {
                         Text("\(index + 1)")
                             .frame(width: 22, alignment: .leading)
-                            .foregroundStyle(index < 4 ? Theme.positive : (index >= rows.count - 3 ? Theme.negative : Theme.textSecondary))
+                            .foregroundStyle(index < places.elite ? Theme.elite
+                                             : (index < places.elite + places.continental ? Theme.continental
+                                                : (index >= rows.count - 3 ? Theme.negative : Theme.textSecondary)))
                         CrestView(club: club, size: 20)
                         Text(club.name)
                             .lineLimit(1)
@@ -84,6 +109,12 @@ struct LeagueView: View {
                     .background(isUser ? Theme.gold.opacity(0.12) : Color.clear, in: RoundedRectangle(cornerRadius: 6))
                 }
             }
+            HStack(spacing: 12) {
+                legendDot(Theme.elite, L("cup.eliteCup"))
+                legendDot(Theme.continental, L("cup.continentalLeague"))
+                Spacer()
+            }
+            .padding(.top, 8)
         }
         .gameCard(padding: 10)
     }
@@ -125,6 +156,13 @@ struct LeagueView: View {
             }
         }
         .gameCard()
+    }
+
+    private func legendDot(_ color: Color, _ text: String) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(text).font(.caption2).foregroundStyle(Theme.textMuted)
+        }
     }
 }
 

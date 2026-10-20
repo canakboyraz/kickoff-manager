@@ -13,6 +13,13 @@ struct NewCareerView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     header
+                    if store.didResetSave {
+                        Text(L("new.saveReset"))
+                            .font(.caption)
+                            .foregroundStyle(Theme.warning)
+                            .multilineTextAlignment(.center)
+                            .gameCard(padding: 10, highlight: Theme.warning.opacity(0.5))
+                    }
                     if let world {
                         countryPicker
                         clubList(world: world)
@@ -93,7 +100,15 @@ struct NewCareerView: View {
                             Text(club.name)
                                 .font(.headline)
                                 .foregroundStyle(Theme.textPrimary)
-                            ReputationStars(reputation: club.reputation)
+                            HStack(spacing: 6) {
+                                ReputationStars(reputation: club.reputation)
+                                if let cup = world.cups.first(where: { $0.clubIDs.contains(club.id) }) {
+                                    Image(systemName: cup.kind.icon)
+                                        .font(.caption2)
+                                        .foregroundStyle(cup.kind.color)
+                                        .accessibilityLabel(cup.kind.label)
+                                }
+                            }
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {

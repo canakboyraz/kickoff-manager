@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import GameEngine
 
 /// Localized string from Localizable.strings.
@@ -66,6 +67,39 @@ extension FacilityKind {
 
 extension AttributeKind {
     var label: String { L("attr.\(rawValue)") }
+    /// Three-letter label used on player cards.
+    var shortLabel: String { L("attr.short.\(rawValue)") }
+}
+
+extension CompetitionKind {
+    var label: String { L("cup.\(rawValue)") }
+    var icon: String { self == .eliteCup ? "trophy.fill" : "star.circle.fill" }
+    var color: Color { self == .eliteCup ? Theme.elite : Theme.continental }
+}
+
+extension CupStage {
+    var key: String {
+        switch self {
+        case .group: return "group"
+        case .quarterFinal: return "quarterFinal"
+        case .semiFinal: return "semiFinal"
+        case .final: return "final"
+        case .winner: return "winner"
+        }
+    }
+
+    var label: String { L("stage.\(key)") }
+}
+
+extension CupFixture {
+    /// "Group · matchday 3", "Quarter-final · 1st leg", "Final".
+    var stageCaption: String {
+        switch stage {
+        case .group: return L("stage.groupMatch", String(leg))
+        case .final, .winner: return CupStage.final.label
+        case .quarterFinal, .semiFinal: return L("stage.leg", stage.label, String(leg))
+        }
+    }
 }
 
 enum Flags {

@@ -94,6 +94,9 @@ struct ClubView: View {
             Divider().overlay(Theme.stroke)
             row(L("club.seasonIncome"), Fmt.money(finances.seasonIncome), color: Theme.positive)
             row(L("club.seasonExpenses"), Fmt.money(finances.seasonExpenses), color: Theme.negative)
+            if finances.seasonEuropeIncome > 0 {
+                row(L("club.europeIncome"), Fmt.money(finances.seasonEuropeIncome), color: Theme.elite)
+            }
         }
         .gameCard()
     }
@@ -104,7 +107,15 @@ struct ClubView: View {
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(text: L("club.history"))
                 ForEach(career.history.reversed(), id: \.season) { entry in
-                    row(Fmt.seasonLabel(entry.season), L("club.historyLine", String(entry.position), String(entry.points)))
+                    VStack(alignment: .leading, spacing: 2) {
+                        row(Fmt.seasonLabel(entry.season), L("club.historyLine", String(entry.position), String(entry.points)))
+                        if let kind = entry.europe, let stage = entry.europeStage {
+                            Text("\(kind.label): \(stage.label)")
+                                .font(.caption)
+                                .foregroundStyle(kind.color)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                    }
                 }
             }
             .gameCard()

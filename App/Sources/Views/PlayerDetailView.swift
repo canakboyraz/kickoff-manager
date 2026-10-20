@@ -19,8 +19,7 @@ struct PlayerDetailView: View {
                 }
                 .padding(16)
                 .sheet(isPresented: $showBid) {
-                    BidSheet(player: player) { message in notice = message }
-                        .presentationDetents([.medium, .large])
+                    NegotiationSheet(playerID: player.id) { message in notice = message }
                 }
                 .sheet(isPresented: $showRenew) {
                     RenewSheet(player: player) { message in notice = message }
@@ -75,17 +74,35 @@ struct PlayerDetailView: View {
     @ViewBuilder
     private func actions(_ player: Player, career: Career) -> some View {
         if player.clubID == career.userClubID {
-            Button {
-                showRenew = true
-            } label: {
-                Label(L("player.renew"), systemImage: "doc.text.fill")
+            HStack(spacing: 8) {
+                Button {
+                    showRenew = true
+                } label: {
+                    Label(L("player.renew"), systemImage: "doc.text.fill")
+                }
+                .buttonStyle(OutlineButtonStyle())
+                Button {
+                    let listed = !player.isTransferListed
+                    store.update { $0.setTransferListed(player.id, listed: listed) }
+                    notice = listed ? L("player.listed.on", player.fullName) : L("player.listed.off", player.fullName)
+                } label: {
+                    Label(player.isTransferListed ? L("player.unlist") : L("player.list"),
+                          systemImage: player.isTransferListed ? "tag.slash.fill" : "tag.fill")
+                }
+                .buttonStyle(OutlineButtonStyle(color: Theme.warning))
             }
-            .buttonStyle(OutlineButtonStyle())
+            if player.isTransferListed {
+                Text(L("player.listedHint"))
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         } else if player.clubID != nil {
+            let inTalks = career.negotiation(for: player.id) != nil
             Button {
                 showBid = true
             } label: {
-                Label(L("player.makeBid"), systemImage: "banknote.fill")
+                Label(inTalks ? L("player.continueTalks") : L("player.makeBid"), systemImage: "banknote.fill")
             }
             .buttonStyle(GoldButtonStyle())
         }
@@ -121,6 +138,11 @@ struct PlayerDetailView: View {
             detailRow(L("player.wage"), Fmt.wage(player.contract.weeklyWage))
             detailRow(L("player.contract"), Fmt.seasonLabel(player.contract.expiresSeason))
             HStack(spacing: 10) {
+                Text(L("player.fitness")).font(.subheadline).foregroundStyle(Theme.textSecondary)
+                ValueBar(value: player.fitness, maxValue: 100, color: Theme.fitnessColor(player.fitness))
+                Text("\(player.fitness)").font(.subheadline.weight(.bold)).foregroundStyle(Theme.fitnessColor(player.fitness))
+            }
+            HStack(spacing: 10) {
                 Text(L("player.morale")).font(.subheadline).foregroundStyle(Theme.textSecondary)
                 ValueBar(value: player.morale, maxValue: 100, color: Theme.moraleColor(player.morale))
                 Text("\(player.morale)").font(.subheadline.weight(.bold)).foregroundStyle(Theme.moraleColor(player.morale))
@@ -144,74 +166,6 @@ struct PlayerDetailView: View {
             Text(title).font(.subheadline).foregroundStyle(Theme.textSecondary)
             Spacer()
             Text(value).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textPrimary)
-        }
-    }
-}
-
-struct BidSheet: View {
-    let player: Player
-    let onResult: (String) -> Void
-    @Environment(GameStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
-    @State private var fee: Double = 0
-
-    var body: some View {
-        if let career = store.career {
-            let asking = career.askingPrice(for: player.id)
-            let wage = career.wageDemand(for: player.id)
-            let budget = min(career.userClub.finances.transferBudget, career.userClub.finances.balance)
-            let upper = Double(max(asking * 3 / 2, 100_000))
-            VStack(spacing: 16) {
-                HStack(spacing: 12) {
-                    PlayerAvatar(player: player, size: 48)
-                    VStack(alignment: .leading) {
-                        Text(player.fullName).font(.headline).foregroundStyle(Theme.textPrimary)
-                        Text(L("bid.asking", Fmt.money(asking))).font(.caption).foregroundStyle(Theme.textSecondary)
-                    }
-                    Spacer()
-                }
-                VStack(spacing: 6) {
-                    Text(Fmt.money(Int(fee)))
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .foregroundStyle(Int(fee) > budget ? Theme.negative : Theme.goldLight)
-                    Slider(value: $fee, in: 0...upper, step: 50_000)
-                        .tint(Theme.gold)
-                    HStack {
-                        Text(L("bid.budget", Fmt.money(budget)))
-                        Spacer()
-                        Text(L("bid.wage", Fmt.wage(wage)))
-                    }
-                    .font(.caption)
-                    .foregroundStyle(Theme.textMuted)
-                }
-                if !career.isTransferWindowOpen {
-                    Text(L("bid.windowClosed"))
-                        .font(.caption)
-                        .foregroundStyle(Theme.warning)
-                }
-                Button(L("bid.submit")) {
-                    let outcome = store.update { $0.placeBid(playerID: player.id, fee: Int(fee)) }
-                    dismiss()
-                    if let outcome { onResult(Self.describe(outcome)) }
-                }
-                .buttonStyle(GoldButtonStyle())
-            }
-            .padding(20)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .background(Theme.background)
-            .onAppear { fee = Double(asking) }
-        }
-    }
-
-    static func describe(_ outcome: BidOutcome) -> String {
-        switch outcome {
-        case .accepted(let fee, _): return L("bid.result.accepted", Fmt.money(fee))
-        case .rejected(let asking): return L("bid.result.rejected", Fmt.money(asking))
-        case .windowClosed: return L("bid.result.windowClosed")
-        case .insufficientBudget: return L("bid.result.budget")
-        case .wageBudgetExceeded: return L("bid.result.wages")
-        case .squadFull: return L("bid.result.squadFull")
-        case .unavailable: return L("bid.result.unavailable")
         }
     }
 }

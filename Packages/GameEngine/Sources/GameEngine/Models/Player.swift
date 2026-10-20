@@ -30,11 +30,15 @@ public struct Player: Codable, Identifiable, Hashable, Sendable {
     public var potential: Int
     /// 0...100
     public var morale: Int
+    /// 0...100. Drops after every match and recovers between matches.
+    public var fitness: Int
     /// Last five match ratings, newest last.
     public var recentRatings: [Double]
     public var clubID: UUID?
     public var contract: Contract
     public var injuryWeeks: Int
+    /// Put up for sale by the user; AI clubs bid for listed players more often.
+    public var isTransferListed: Bool
     public var stats: SeasonStats
     public var careerGoals: Int
     public var careerAppearances: Int
@@ -57,6 +61,17 @@ public struct Player: Codable, Identifiable, Hashable, Sendable {
     /// Average of recent ratings, or nil when the player hasn't played yet.
     public var form: Double? {
         recentRatings.isEmpty ? nil : recentRatings.reduce(0, +) / Double(recentRatings.count)
+    }
+
+    /// The player's three best attributes, best first (goalkeeping only counts for keepers).
+    public var topAttributes: [AttributeKind] {
+        let kinds = AttributeKind.allCases.filter { position == .goalkeeper || $0 != .goalkeeping }
+        let ranked = kinds.enumerated().sorted { lhs, rhs in
+            let left = attributes[lhs.element]
+            let right = attributes[rhs.element]
+            return left != right ? left > right : lhs.offset < rhs.offset
+        }
+        return ranked.prefix(3).map(\.element)
     }
 
     /// Market value in euros.

@@ -14,4 +14,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and test
         working-directory: Packages/GameEngine
-        run: swift test
+        shell: bash
+        run: |
+          set -o pipefail
+          status=0
+          swift test > test.log 2>&1 || status=$?
+          tail -30 test.log
+          # Surface compile errors and failed assertions as annotations.
+          grep -E "error:|failed \(|XCTAssert" test.log | sort -u | head -40 | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
+          exit $status

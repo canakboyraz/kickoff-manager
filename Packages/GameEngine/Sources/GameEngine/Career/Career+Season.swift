@@ -1,51 +1,95 @@
 import Foundation
 
+public struct SeasonSummary: Codable, Hashable, Sendable {
+    public var season: Int
+    public var leagueName: String
+    public var position: Int
+    public var points: Int
+    public var prizeMoney: Int
+    /// European cup the club played in that season, and how far it got.
+    public var europe: CompetitionKind?
+    public var europeStage: CupStage?
+}
+
+/// What happened when the user pressed "play week".
+public struct WeekReport: Sendable {
+    public var matchday: Int
+    public var userFixture: Fixture?
+    /// The user's midweek cup game, if there was one.
+    public var userCupFixture: CupFixture?
+    public var userCupKind: CompetitionKind?
+    public var newMessages: [InboxMessage]
+    /// Set when this week was the last matchday; the next season has already started.
+    public var finishedSeason: SeasonSummary?
+}
+
 extension Career {
-    /// Plays the next matchday in every league and runs the weekly systems
-    /// (injuries, finances, upgrades, development, transfer offers).
-    /// After the last matchday the season is closed and the next one starts automatically.
+    /// Plays the coming week: a midweek European round (if scheduled), then the league
+    /// matchday in every league, then the weekly systems (fitness, injuries, finances,
+    /// upgrades, development, transfer offers). After the last matchday the season is
+    /// closed and the next one starts automatically.
     @discardableResult
     public mutating func advanceWeek() -> WeekReport {
-        let inboxStart = inbox.map(\.id)
+        let known = Set(inbox.map(\.id))
         let matchday = week + 1
+        normalizeUserTactics()
+        var injuredThisWeek = Set<UUID>()
+
+        let hasCupGames = cups.contains { cup in
+            cup.fixtures.contains { $0.week == matchday && $0.result == nil }
+        }
+        if hasCupGames {
+            // Two games in a week: only half a week to recover before each.
+            recoverFitness(fraction: 0.5)
+            injuredThisWeek.formUnion(playCupMatches(week: matchday))
+            updateCupBrackets()
+            recoverFitness(fraction: 0.5)
+        } else {
+            recoverFitness(fraction: 1)
+        }
 
         for leagueIndex in leagues.indices {
             for fixtureIndex in leagues[leagueIndex].fixtures.indices {
                 let fixture = leagues[leagueIndex].fixtures[fixtureIndex]
-                if fixture.matchday == matchday && fixture.result == nil {
-                    playFixture(leagueIndex: leagueIndex, fixtureIndex: fixtureIndex)
-                }
+                guard fixture.matchday == matchday, fixture.result == nil else { continue }
+                injuredThisWeek.formUnion(playLeagueFixture(leagueIndex: leagueIndex, fixtureIndex: fixtureIndex))
             }
         }
         week = matchday
 
-        // Players hurt this week keep their full injury length; everyone else heals one week.
-        let injuredNow = Set(leagues.flatMap { $0.fixtures(on: matchday) }
-            .compactMap(\.result)
-            .flatMap(\.events)
-            .filter { $0.kind == .injury }
-            .map(\.playerID))
-        tickInjuries(excluding: injuredNow)
-
+        tickInjuries(excluding: injuredThisWeek)
         weeklyFinances()
         tickUpgrades()
         if matchday % 4 == 0 { developmentTick() }
         if matchday == max(1, matchdayCount - 8) { warnAboutExpiringContracts() }
+        // Talks start over when the winter window opens.
+        if matchday == matchdayCount / 2 { talks.removeAll() }
         expireOffers()
         generateIncomingOffers()
 
         let userFixture = userLeague.fixtures.first { $0.matchday == matchday && $0.involves(userClubID) }
+        var userCupFixture: CupFixture?
+        var userCupKind: CompetitionKind?
+        for cup in cups {
+            if let fixture = cup.fixtures.first(where: { $0.week == matchday && $0.involves(userClubID) }) {
+                userCupFixture = fixture
+                userCupKind = cup.kind
+            }
+        }
 
         var summary: SeasonSummary?
         if week >= matchdayCount {
-            summary = closeSeason()
-            startNewSeason()
+            let closing = closeSeason()
+            summary = closing.summary
+            startNewSeason(qualifiers: closing.qualifiers)
         }
+        normalizeUserTactics()
 
-        let known = Set(inboxStart)
         return WeekReport(
             matchday: matchday,
             userFixture: userFixture,
+            userCupFixture: userCupFixture,
+            userCupKind: userCupKind,
             newMessages: inbox.filter { !known.contains($0.id) },
             finishedSeason: summary
         )
@@ -53,38 +97,38 @@ extension Career {
 
     // MARK: - Matches
 
-    mutating func playFixture(leagueIndex: Int, fixtureIndex: Int) {
+    mutating func playLeagueFixture(leagueIndex: Int, fixtureIndex: Int) -> Set<UUID> {
         let fixture = leagues[leagueIndex].fixtures[fixtureIndex]
-        guard let home = clubs[fixture.homeID], let away = clubs[fixture.awayID] else { return }
-        let homeSquad = squad(of: home.id)
-        let awaySquad = squad(of: away.id)
+        guard let home = clubs[fixture.homeID], let away = clubs[fixture.awayID] else { return [] }
+        let homeSheet = teamSheet(for: home.id)
+        let awaySheet = teamSheet(for: away.id)
 
         var generator = rng
-        let outcome = MatchEngine.play(home: home, away: away, homeSquad: homeSquad, awaySquad: awaySquad, rng: &generator)
+        let outcome = MatchEngine.play(home: home, away: away, homeSheet: homeSheet, awaySheet: awaySheet, rng: &generator)
         rng = generator
 
+        leagues[leagueIndex].fixtures[fixtureIndex].result = outcome.result
+        let gate = outcome.result.attendance * home.stadium.ticketPrice
+        clubs[home.id]?.finances.balance += gate
+        clubs[home.id]?.finances.seasonIncome += gate
+        return applyOutcome(outcome, homeID: home.id, awayID: away.id)
+    }
+
+    /// Stats, fitness, morale and injuries after a match. Returns players injured in it.
+    mutating func applyOutcome(_ outcome: MatchEngine.Outcome, homeID: UUID, awayID: UUID) -> Set<UUID> {
         let result = outcome.result
-        leagues[leagueIndex].fixtures[fixtureIndex].result = result
-
-        var goals: [UUID: Int] = [:]
-        var assists: [UUID: Int] = [:]
-        for event in result.events where event.kind == .goal {
-            goals[event.playerID, default: 0] += 1
-            if let assistID = event.assistID { assists[assistID, default: 0] += 1 }
-        }
-
         var played = Set<UUID>()
-        for rating in result.ratings {
-            played.insert(rating.playerID)
-            players[rating.playerID]?.recordMatch(
-                rating: rating.rating,
-                goals: goals[rating.playerID] ?? 0,
-                assists: assists[rating.playerID] ?? 0
-            )
+        for appearance in outcome.appearances {
+            played.insert(appearance.playerID)
+            guard var player = players[appearance.playerID] else { continue }
+            player.recordMatch(rating: appearance.rating, goals: appearance.goals, assists: appearance.assists)
+            // Physically strong players tire less.
+            let cost = Double(appearance.minutes) / 90 * (24 - Double(player.attributes.physical) * 0.12)
+            player.fitness = max(0, player.fitness - Int(cost.rounded()))
+            players[appearance.playerID] = player
         }
-
-        applyMorale(clubID: home.id, scored: result.homeGoals, conceded: result.awayGoals, played: played)
-        applyMorale(clubID: away.id, scored: result.awayGoals, conceded: result.homeGoals, played: played)
+        applyMorale(clubID: homeID, scored: result.homeGoals, conceded: result.awayGoals, played: played)
+        applyMorale(clubID: awayID, scored: result.awayGoals, conceded: result.homeGoals, played: played)
 
         for injury in outcome.injuries {
             players[injury.playerID]?.injuryWeeks = injury.weeks
@@ -92,10 +136,7 @@ extension Career {
                 post(.injury(playerID: injury.playerID, weeks: injury.weeks))
             }
         }
-
-        let gate = result.attendance * home.stadium.ticketPrice
-        clubs[home.id]?.finances.balance += gate
-        clubs[home.id]?.finances.seasonIncome += gate
+        return Set(outcome.injuries.map(\.playerID))
     }
 
     mutating func applyMorale(clubID: UUID, scored: Int, conceded: Int, played: Set<UUID>) {
@@ -112,16 +153,27 @@ extension Career {
         }
     }
 
+    // MARK: - Weekly systems
+
+    /// Recovery between games. A better medical centre and strong physique speed it up.
+    mutating func recoverFitness(fraction: Double) {
+        for id in Array(players.keys) {
+            guard var player = players[id], player.fitness < 100 else { continue }
+            let medical = player.clubID.flatMap { clubs[$0]?.facilities.medical } ?? 3
+            let amount = (17 + Double(medical) * 0.5 + Double(player.attributes.physical - 60) * 0.05) * fraction
+            player.fitness = min(100, player.fitness + max(1, Int(amount.rounded())))
+            players[id] = player
+        }
+    }
+
     mutating func tickInjuries(excluding excluded: Set<UUID>) {
-        for id in players.keys where (players[id]?.injuryWeeks ?? 0) > 0 && !excluded.contains(id) {
+        for id in Array(players.keys) where (players[id]?.injuryWeeks ?? 0) > 0 && !excluded.contains(id) {
             players[id]?.injuryWeeks -= 1
         }
     }
 
-    // MARK: - Finances and upgrades
-
     mutating func weeklyFinances() {
-        for clubID in clubs.keys {
+        for clubID in Array(clubs.keys) {
             guard let club = clubs[clubID] else { continue }
             let wages = wageBill(of: clubID)
             let commercial = club.weeklyCommercialIncome
@@ -132,7 +184,7 @@ extension Career {
     }
 
     mutating func tickUpgrades() {
-        for clubID in clubs.keys {
+        for clubID in Array(clubs.keys) {
             guard var club = clubs[clubID], !club.upgrades.isEmpty else { continue }
             var finished: [FacilityKind] = []
             for index in club.upgrades.indices {
@@ -160,13 +212,17 @@ extension Career {
         }
     }
 
+
     // MARK: - End of season
 
-    mutating func closeSeason() -> SeasonSummary? {
+    mutating func closeSeason() -> (summary: SeasonSummary?, qualifiers: [CompetitionKind: [UUID]]) {
         var userSummary: SeasonSummary?
+        var rankings: [(strength: Double, order: [UUID])] = []
+        let userCup = self.userCup
 
         for league in leagues {
             let table = league.table()
+            rankings.append((strength: league.strength, order: table.map(\.clubID)))
             let expectedOrder = league.clubIDs.sorted { (clubs[$0]?.reputation ?? 0) > (clubs[$1]?.reputation ?? 0) }
             for (index, row) in table.enumerated() {
                 let prize = Career.roundTo(league.strength * (20_000_000 - Double(index) * 900_000), step: 50_000)
@@ -186,7 +242,9 @@ extension Career {
                         leagueName: league.name,
                         position: index + 1,
                         points: row.points,
-                        prizeMoney: prize
+                        prizeMoney: prize,
+                        europe: userCup?.kind,
+                        europeStage: userCup?.stageReached(by: userClubID)
                     )
                     history.append(summary)
                     userSummary = summary
@@ -195,8 +253,13 @@ extension Career {
             }
         }
 
+        let qualifiers = Career.europeanQualifiers(rankings: rankings)
+        for kind in CompetitionKind.allCases where qualifiers[kind]?.contains(userClubID) == true {
+            post(.cupQualified(kind: kind, season: season + 1))
+        }
+
         // The board sets new budgets from reputation and cash in the bank.
-        for clubID in clubs.keys {
+        for clubID in Array(clubs.keys) {
             guard let club = clubs[clubID] else { continue }
             let base = Career.baseTransferBudget(reputation: club.reputation)
             let fromCash = max(0, club.finances.balance) / 6
@@ -208,7 +271,7 @@ extension Career {
         handleRetirementsAndContracts()
         youthIntake()
         maintainAISquads()
-        return userSummary
+        return (summary: userSummary, qualifiers: qualifiers)
     }
 
     mutating func handleRetirementsAndContracts() {
@@ -329,19 +392,24 @@ extension Career {
         }
     }
 
-    mutating func startNewSeason() {
+    mutating func startNewSeason(qualifiers: [CompetitionKind: [UUID]]) {
         season += 1
         week = 0
         for index in leagues.indices {
             leagues[index].fixtures = Scheduler.doubleRoundRobin(clubIDs: leagues[index].clubIDs, rng: &rng)
         }
-        for id in players.keys {
+        for id in Array(players.keys) {
             players[id]?.stats = SeasonStats()
+            // Pre-season gets everyone fit again.
+            players[id]?.fitness = 100
         }
-        for id in clubs.keys {
+        for id in Array(clubs.keys) {
             clubs[id]?.finances.seasonIncome = 0
             clubs[id]?.finances.seasonExpenses = 0
+            clubs[id]?.finances.seasonEuropeIncome = 0
         }
         offers.removeAll { $0.status != .pending }
+        talks.removeAll()
+        setUpCups(qualifiers: qualifiers)
     }
 }

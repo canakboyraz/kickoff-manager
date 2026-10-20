@@ -30,6 +30,7 @@ extension Career {
                 let transferBudget = baseTransferBudget(reputation: reputation)
                 let capacity = roundTo(Double(8_000 + reputation * 480 + rng.int(-4_000...4_000)), step: 500)
                 let facilityBase = 1 + reputation / 12
+                let formation = pickFormation(&rng)
 
                 let club = Club(
                     id: clubID,
@@ -39,6 +40,7 @@ extension Career {
                     leagueID: leagueID,
                     reputation: reputation,
                     colors: ClubColors(primary: clubSeed.primary, secondary: clubSeed.secondary),
+                    formation: formation,
                     stadium: Stadium(name: clubSeed.stadium, capacity: capacity, ticketPrice: fairTicketPrice(reputation: reputation)),
                     facilities: Facilities(
                         training: (facilityBase + rng.int(-1...1)).clamped(to: 1...Facilities.maxLevel),
@@ -67,7 +69,7 @@ extension Career {
             ))
         }
 
-        return Career(
+        var career = Career(
             version: Career.currentVersion,
             season: season,
             week: 0,
@@ -78,17 +80,42 @@ extension Career {
             inbox: [],
             offers: [],
             history: [],
+            userTactics: Tactics(formation: .f433, starters: [], bench: []),
+            talks: [:],
+            cups: [],
             rng: rng
         )
+
+        // In the first season the most reputable clubs play in Europe ("last season's" top places).
+        let rankings = leagues.map { league in
+            (strength: league.strength,
+             order: league.clubIDs.sorted { (clubs[$0]?.reputation ?? 0) > (clubs[$1]?.reputation ?? 0) })
+        }
+        career.setUpCups(qualifiers: Career.europeanQualifiers(rankings: rankings))
+        return career
     }
 
-    /// Sets the club the user manages and posts the board's welcome message.
+    /// Sets the club the user manages, picks a starting eleven and posts the board's welcome.
     public mutating func chooseClub(_ clubID: UUID) {
-        guard clubs[clubID] != nil else { return }
+        guard let club = clubs[clubID] else { return }
         userClubID = clubID
         inbox.removeAll()
         offers.removeAll()
+        talks.removeAll()
+        userTactics = Tactics(formation: club.formation, starters: [], bench: [])
+        autoPickLineup()
         post(.boardWelcome)
+        if let cup = cups.first(where: { $0.clubIDs.contains(clubID) }) {
+            post(.cupQualified(kind: cup.kind, season: season))
+        }
+    }
+
+    static func pickFormation(_ rng: inout SeededRandom) -> Formation {
+        let options: [(formation: Formation, weight: Double)] = [
+            (.f433, 3), (.f442, 3), (.f4231, 3), (.f352, 1), (.f532, 1)
+        ]
+        let index = rng.weightedIndex(options.map { $0.weight }) ?? 0
+        return options[index].formation
     }
 
     // MARK: - Helpers
@@ -129,7 +156,7 @@ extension Career {
     }
 
     static func starterCount(for position: Position) -> Int {
-        MatchEngine.formation.filter { $0 == position }.count
+        Formation.f433.slots.filter { $0 == position }.count
     }
 
     static func averageOverall(reputation: Int) -> Double {

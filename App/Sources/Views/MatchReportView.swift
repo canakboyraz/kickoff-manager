@@ -1,17 +1,22 @@
 import SwiftUI
 import GameEngine
 
-/// Full-screen report for any played fixture (opened from results and the league tab).
+/// Full-screen report for any played league or cup game.
 struct MatchReportView: View {
     let fixtureID: UUID
     @Environment(GameStore.self) private var store
 
     var body: some View {
         ScrollView {
-            if let career = store.career,
-               let fixture = career.leagues.lazy.flatMap(\.fixtures).first(where: { $0.id == fixtureID }) {
-                MatchSummaryView(fixture: fixture, career: career)
-                    .padding(16)
+            if let career = store.career {
+                Group {
+                    if let fixture = career.leagues.lazy.flatMap(\.fixtures).first(where: { $0.id == fixtureID }) {
+                        MatchSummaryView(fixture: fixture, career: career)
+                    } else if let match = career.cupMatch(fixtureID) {
+                        MatchSummaryView(cupFixture: match.fixture, kind: match.cup.kind, cup: match.cup, career: career)
+                    }
+                }
+                .padding(16)
             }
         }
         .gameBackground()
@@ -20,15 +25,48 @@ struct MatchReportView: View {
     }
 }
 
-/// Score header, goal timeline and player ratings.
+/// Score header, events (goals, injuries, substitutions) and the user's player ratings.
 struct MatchSummaryView: View {
-    let fixture: Fixture
+    let homeID: UUID
+    let awayID: UUID
+    let result: MatchResult?
+    let caption: String
+    let captionColor: Color
+    /// Aggregate score or penalty winner for cup ties.
+    let note: String?
     let career: Career
 
+    init(fixture: Fixture, career: Career) {
+        homeID = fixture.homeID
+        awayID = fixture.awayID
+        result = fixture.result
+        caption = L("match.matchday", String(fixture.matchday))
+        captionColor = Color(hex: "C0DD97")
+        note = nil
+        self.career = career
+    }
+
+    init(cupFixture: CupFixture, kind: CompetitionKind, cup: Cup?, career: Career) {
+        homeID = cupFixture.homeID
+        awayID = cupFixture.awayID
+        result = cupFixture.result
+        caption = "\(kind.label.uppercased()) · \(cupFixture.stageCaption)"
+        captionColor = kind.color
+        var lines: [String] = []
+        if let cup, let tie = cupFixture.tie, cupFixture.stage != .final, cupFixture.leg == 2,
+           let score = cup.aggregate(stage: cupFixture.stage, tie: tie),
+           let first = career.club(score.first), let second = career.club(score.second) {
+            lines.append(L("match.aggregate", first.shortName, String(score.firstGoals), String(score.secondGoals), second.shortName))
+        }
+        if let winnerID = cupFixture.shootoutWinnerID, let winner = career.club(winnerID) {
+            lines.append(L("match.penalties", winner.name))
+        }
+        note = lines.isEmpty ? nil : lines.joined(separator: "\n")
+        self.career = career
+    }
+
     var body: some View {
-        if let result = fixture.result,
-           let home = career.club(fixture.homeID),
-           let away = career.club(fixture.awayID) {
+        if let result, let home = career.club(homeID), let away = career.club(awayID) {
             VStack(spacing: 14) {
                 scoreboard(result: result, home: home, away: away)
                 timeline(result: result)
@@ -39,9 +77,10 @@ struct MatchSummaryView: View {
 
     private func scoreboard(result: MatchResult, home: Club, away: Club) -> some View {
         VStack(spacing: 10) {
-            Text(L("match.matchday", String(fixture.matchday)))
+            Text(caption)
                 .font(.caption.weight(.bold))
-                .foregroundStyle(Color(hex: "C0DD97"))
+                .foregroundStyle(captionColor)
+                .multilineTextAlignment(.center)
             HStack {
                 VStack(spacing: 6) {
                     CrestView(club: home, size: 52)
@@ -58,6 +97,12 @@ struct MatchSummaryView: View {
                 .frame(maxWidth: .infinity)
             }
             .foregroundStyle(.white)
+            if let note {
+                Text(note)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+            }
             HStack(spacing: 14) {
                 Label(L("match.xg", Fmt.rating(result.homeExpectedGoals), Fmt.rating(result.awayExpectedGoals)), systemImage: "scope")
                 Label(Fmt.number(result.attendance), systemImage: "person.3.fill")
@@ -80,29 +125,50 @@ struct MatchSummaryView: View {
                     .foregroundStyle(Theme.textMuted)
             }
             ForEach(Array(result.events.enumerated()), id: \.offset) { _, event in
-                let isHome = event.clubID == fixture.homeID
-                HStack(spacing: 8) {
-                    if !isHome { Spacer() }
-                    Text("\(event.minute)'")
-                        .font(.caption.weight(.bold).monospacedDigit())
-                        .foregroundStyle(Theme.goldLight)
-                    Image(systemName: event.kind == .goal ? "soccerball" : "cross.case.fill")
-                        .foregroundStyle(event.kind == .goal ? Theme.textPrimary : Theme.negative)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(career.player(event.playerID)?.shortName ?? "?")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                        if let assistID = event.assistID, let assist = career.player(assistID) {
-                            Text(L("match.assist", assist.shortName))
-                                .font(.caption2)
-                                .foregroundStyle(Theme.textMuted)
-                        }
-                    }
-                    if isHome { Spacer() }
-                }
+                eventRow(event)
             }
         }
         .gameCard()
+    }
+
+    private func eventRow(_ event: MatchEvent) -> some View {
+        let isHome = event.clubID == homeID
+        return HStack(spacing: 8) {
+            if !isHome { Spacer() }
+            Text("\(event.minute)'")
+                .font(.caption.weight(.bold).monospacedDigit())
+                .foregroundStyle(Theme.goldLight)
+            switch event.kind {
+            case .goal:
+                Image(systemName: "soccerball").foregroundStyle(Theme.textPrimary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(career.player(event.playerID)?.shortName ?? "?")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                    if let assistID = event.assistID, let assist = career.player(assistID) {
+                        Text(L("match.assist", assist.shortName))
+                            .font(.caption2)
+                            .foregroundStyle(Theme.textMuted)
+                    }
+                }
+            case .injury:
+                Image(systemName: "cross.case.fill").foregroundStyle(Theme.negative)
+                Text(career.player(event.playerID)?.shortName ?? "?")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textPrimary)
+            case .substitution:
+                Image(systemName: "arrow.up.arrow.down").foregroundStyle(Theme.textSecondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(event.subInID.flatMap { career.player($0)?.shortName } ?? "?")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.positive)
+                    Text(career.player(event.playerID)?.shortName ?? "?")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.textMuted)
+                }
+            }
+            if isHome { Spacer() }
+        }
     }
 
     private func ratings(result: MatchResult) -> some View {
@@ -123,6 +189,11 @@ struct MatchSummaryView: View {
                                 Text(player.shortName)
                                     .font(.subheadline)
                                     .foregroundStyle(Theme.textPrimary)
+                                if entry.minutes < 90 {
+                                    Text("\(entry.minutes)'")
+                                        .font(.caption2)
+                                        .foregroundStyle(Theme.textMuted)
+                                }
                                 Spacer()
                                 Text(Fmt.rating(entry.rating))
                                     .font(.subheadline.weight(.heavy).monospacedDigit())

@@ -18,7 +18,7 @@ public enum FacilityKind: String, Codable, CaseIterable, Hashable, Sendable {
     case training
     /// Better youth intake.
     case youth
-    /// Fewer and shorter injuries.
+    /// Fewer and shorter injuries, faster recovery.
     case medical
     /// Adds seats to the stadium.
     case stadium
@@ -68,6 +68,8 @@ public struct Finances: Codable, Hashable, Sendable {
     /// Running totals for the current season (shown on the club screen).
     public var seasonIncome: Int = 0
     public var seasonExpenses: Int = 0
+    /// Part of `seasonIncome` earned in the European cups (gates and prize money).
+    public var seasonEuropeIncome: Int = 0
 }
 
 public struct Club: Codable, Identifiable, Hashable, Sendable {
@@ -79,6 +81,8 @@ public struct Club: Codable, Identifiable, Hashable, Sendable {
     /// 1...100. Drives attendance, sponsorship and how attractive the club is.
     public var reputation: Int
     public var colors: ClubColors
+    /// Shape the AI uses. The user's club uses `Career.userTactics` instead.
+    public var formation: Formation
     public var stadium: Stadium
     public var facilities: Facilities
     public var finances: Finances

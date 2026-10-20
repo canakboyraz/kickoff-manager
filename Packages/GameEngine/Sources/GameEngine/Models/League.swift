@@ -3,20 +3,25 @@ import Foundation
 public enum MatchEventKind: String, Codable, Hashable, Sendable {
     case goal
     case injury
+    case substitution
 }
 
 public struct MatchEvent: Codable, Hashable, Sendable {
     public var minute: Int
     public var kind: MatchEventKind
     public var clubID: UUID
+    /// Scorer, injured player, or the player going off.
     public var playerID: UUID
     public var assistID: UUID?
+    /// For substitutions: the player coming on.
+    public var subInID: UUID?
 }
 
 public struct PlayerRating: Codable, Hashable, Sendable {
     public var playerID: UUID
     public var clubID: UUID
     public var rating: Double
+    public var minutes: Int
 }
 
 public struct MatchResult: Codable, Hashable, Sendable {
@@ -53,13 +58,37 @@ public struct TableRow: Hashable, Identifiable, Sendable {
     public var goalsAgainst = 0
     public var goalDifference: Int { goalsFor - goalsAgainst }
     public var points: Int { won * 3 + drawn }
+
+    mutating func apply(scored: Int, conceded: Int) {
+        played += 1
+        goalsFor += scored
+        goalsAgainst += conceded
+        if scored > conceded { won += 1 } else if scored == conceded { drawn += 1 } else { lost += 1 }
+    }
+}
+
+public enum Standings {
+    /// Points, then goal difference, then goals scored.
+    public static func table(clubIDs: [UUID], results: [(homeID: UUID, awayID: UUID, result: MatchResult)]) -> [TableRow] {
+        var rows = Dictionary(uniqueKeysWithValues: clubIDs.map { ($0, TableRow(clubID: $0)) })
+        for entry in results {
+            rows[entry.homeID]?.apply(scored: entry.result.homeGoals, conceded: entry.result.awayGoals)
+            rows[entry.awayID]?.apply(scored: entry.result.awayGoals, conceded: entry.result.homeGoals)
+        }
+        return rows.values.sorted {
+            if $0.points != $1.points { return $0.points > $1.points }
+            if $0.goalDifference != $1.goalDifference { return $0.goalDifference > $1.goalDifference }
+            if $0.goalsFor != $1.goalsFor { return $0.goalsFor > $1.goalsFor }
+            return $0.clubID.uuidString < $1.clubID.uuidString
+        }
+    }
 }
 
 public struct League: Codable, Identifiable, Hashable, Sendable {
     public let id: UUID
     public var name: String
     public var countryCode: String
-    /// Relative strength of the league (1.0 = strongest). Affects reputation and prize money.
+    /// Relative strength of the league (1.0 = strongest). Affects prize money and European places.
     public var strength: Double
     public var clubIDs: [UUID]
     public var fixtures: [Fixture]
@@ -73,30 +102,13 @@ public struct League: Codable, Identifiable, Hashable, Sendable {
     }
 
     public func table() -> [TableRow] {
-        var rows = Dictionary(uniqueKeysWithValues: clubIDs.map { ($0, TableRow(clubID: $0)) })
-        for fixture in fixtures {
-            guard let result = fixture.result else { continue }
-            rows[fixture.homeID]?.apply(scored: result.homeGoals, conceded: result.awayGoals)
-            rows[fixture.awayID]?.apply(scored: result.awayGoals, conceded: result.homeGoals)
+        let results = fixtures.compactMap { fixture in
+            fixture.result.map { (homeID: fixture.homeID, awayID: fixture.awayID, result: $0) }
         }
-        return rows.values.sorted {
-            if $0.points != $1.points { return $0.points > $1.points }
-            if $0.goalDifference != $1.goalDifference { return $0.goalDifference > $1.goalDifference }
-            if $0.goalsFor != $1.goalsFor { return $0.goalsFor > $1.goalsFor }
-            return $0.clubID.uuidString < $1.clubID.uuidString
-        }
+        return Standings.table(clubIDs: clubIDs, results: results)
     }
 
     public func position(of clubID: UUID) -> Int? {
         table().firstIndex { $0.clubID == clubID }.map { $0 + 1 }
-    }
-}
-
-extension TableRow {
-    mutating func apply(scored: Int, conceded: Int) {
-        played += 1
-        goalsFor += scored
-        goalsAgainst += conceded
-        if scored > conceded { won += 1 } else if scored == conceded { drawn += 1 } else { lost += 1 }
     }
 }

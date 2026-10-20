@@ -1,12 +1,5 @@
 import Foundation
 
-public struct LineupSlot: Hashable, Sendable {
-    public var slot: Position
-    public var player: Player
-    /// Rating of the player in this slot, after out-of-position and morale effects.
-    public var effectiveRating: Double
-}
-
 public struct TeamStrength: Hashable, Sendable {
     public var attack: Double
     public var defence: Double
@@ -14,40 +7,8 @@ public struct TeamStrength: Hashable, Sendable {
 }
 
 public enum MatchEngine {
-    /// 4-3-3, filled scarcest slots first.
-    public static let formation: [Position] = [
-        .goalkeeper, .centreBack, .centreBack, .striker, .defensiveMid,
-        .fullBack, .fullBack, .centralMid, .centralMid, .winger, .winger
-    ]
-
-    /// Display order for the 4-3-3 (back to front).
-    public static let displayOrder: [Position] = [
-        .goalkeeper, .fullBack, .centreBack, .centreBack, .fullBack,
-        .centralMid, .defensiveMid, .centralMid, .winger, .striker, .winger
-    ]
-
-    static func rating(of player: Player, in slot: Position) -> Double {
-        var value = Double(player.attributes.overall(for: slot))
-        if player.position != slot {
-            value -= player.position.line == slot.line ? 2 : 6
-        }
-        value += Double(player.morale - 60) / 20
-        return value
-    }
-
-    /// Picks the best available eleven from a squad.
-    public static func bestLineup(from squad: [Player]) -> [LineupSlot] {
-        var available = squad.filter { !$0.isInjured }
-        var lineup: [LineupSlot] = []
-        for slot in formation {
-            guard let best = available.max(by: { rating(of: $0, in: slot) < rating(of: $1, in: slot) }) else { break }
-            lineup.append(LineupSlot(slot: slot, player: best, effectiveRating: rating(of: best, in: slot)))
-            available.removeAll { $0.id == best.id }
-        }
-        return lineup
-    }
-
-    public static func strength(of lineup: [LineupSlot]) -> TeamStrength {
+    public static func strength(of sheet: TeamSheet) -> TeamStrength {
+        let lineup = sheet.starters
         func average(_ lines: [Position.Line]) -> Double {
             let values = lineup.filter { lines.contains($0.slot.line) }.map(\.effectiveRating)
             return values.isEmpty ? 30 : values.reduce(0, +) / Double(values.count)
@@ -56,115 +17,86 @@ public enum MatchEngine {
         let defence = average([.defence])
         let midfield = average([.midfield])
         let attack = average([.attack])
-        let missing = Double(max(0, formation.count - lineup.count)) * 6
+        let missing = Double(max(0, sheet.formation.slots.count - lineup.count)) * 6
 
-        let attackRating = 0.55 * attack + 0.35 * midfield + 0.10 * defence - missing
-        let defenceRating = 0.45 * defence + 0.25 * keeper + 0.30 * midfield - missing
+        let attackRating = 0.55 * attack + 0.35 * midfield + 0.10 * defence - missing + sheet.formation.attackModifier
+        let defenceRating = 0.45 * defence + 0.25 * keeper + 0.30 * midfield - missing + sheet.formation.defenceModifier
         let overall = lineup.isEmpty ? 0 : lineup.map(\.effectiveRating).reduce(0, +) / Double(lineup.count)
         return TeamStrength(attack: attackRating, defence: defenceRating, overall: overall)
+    }
+
+    struct Appearance {
+        var playerID: UUID
+        var clubID: UUID
+        var minutes: Int
+        var rating: Double
+        var goals: Int
+        var assists: Int
     }
 
     struct Outcome {
         var result: MatchResult
         var injuries: [(playerID: UUID, weeks: Int)]
-        var homeLineup: [LineupSlot]
-        var awayLineup: [LineupSlot]
+        var appearances: [Appearance]
+    }
+
+    /// A spell on the pitch: starters play from 0, substitutes from the minute they come on.
+    private struct Stint {
+        var slot: Position
+        var player: Player
+        var rating: Double
+        var from: Int
+        var to: Int
+
+        var minutes: Int { to - from }
+
+        func isOnPitch(at minute: Int) -> Bool { from < minute && minute <= to }
     }
 
     static func play(
         home: Club,
         away: Club,
-        homeSquad: [Player],
-        awaySquad: [Player],
+        homeSheet: TeamSheet,
+        awaySheet: TeamSheet,
+        neutral: Bool = false,
+        attendanceBoost: Double = 0,
         rng: inout SeededRandom
     ) -> Outcome {
-        let homeLineup = bestLineup(from: homeSquad)
-        let awayLineup = bestLineup(from: awaySquad)
-        let homeStrength = strength(of: homeLineup)
-        let awayStrength = strength(of: awayLineup)
-
-        let homeXG = (1.32 * exp((homeStrength.attack - awayStrength.defence) / 14)).clamped(to: 0.15...4.0)
-        let awayXG = (1.02 * exp((awayStrength.attack - homeStrength.defence) / 14)).clamped(to: 0.15...4.0)
+        let homeStrength = strength(of: homeSheet)
+        let awayStrength = strength(of: awaySheet)
+        let homeBase = neutral ? 1.17 : 1.32
+        let awayBase = neutral ? 1.17 : 1.02
+        let homeXG = (homeBase * exp((homeStrength.attack - awayStrength.defence) / 14)).clamped(to: 0.15...4.0)
+        let awayXG = (awayBase * exp((awayStrength.attack - homeStrength.defence) / 14)).clamped(to: 0.15...4.0)
         let homeGoals = rng.poisson(homeXG)
         let awayGoals = rng.poisson(awayXG)
 
         var events: [MatchEvent] = []
+        let homeStints = makeStints(homeSheet, clubID: home.id, events: &events, rng: &rng)
+        let awayStints = makeStints(awaySheet, clubID: away.id, events: &events, rng: &rng)
+
         var goalsBy: [UUID: Int] = [:]
         var assistsBy: [UUID: Int] = [:]
+        addGoals(homeGoals, stints: homeStints, clubID: home.id, events: &events, goals: &goalsBy, assists: &assistsBy, rng: &rng)
+        addGoals(awayGoals, stints: awayStints, clubID: away.id, events: &events, goals: &goalsBy, assists: &assistsBy, rng: &rng)
 
-        func addGoals(_ count: Int, lineup: [LineupSlot], clubID: UUID) {
-            guard !lineup.isEmpty else { return }
-            for _ in 0..<count {
-                let scorerWeights = lineup.map { $0.slot.scoringWeight * pow(Double($0.player.attributes.shooting) / 65, 2.5) }
-                guard let scorerIndex = rng.weightedIndex(scorerWeights) else { continue }
-                let scorer = lineup[scorerIndex].player
-                var assistID: UUID?
-                if rng.chance(0.75) {
-                    var assistWeights: [Double] = []
-                    for (index, entry) in lineup.enumerated() {
-                        let weight = entry.slot.assistWeight * pow(Double(entry.player.attributes.passing) / 65, 2)
-                        assistWeights.append(index == scorerIndex ? 0 : weight)
-                    }
-                    if let assistIndex = rng.weightedIndex(assistWeights) {
-                        assistID = lineup[assistIndex].player.id
-                    }
-                }
-                goalsBy[scorer.id, default: 0] += 1
-                if let assistID { assistsBy[assistID, default: 0] += 1 }
-                events.append(MatchEvent(minute: rng.int(1...90), kind: .goal, clubID: clubID, playerID: scorer.id, assistID: assistID))
-            }
-        }
-        addGoals(homeGoals, lineup: homeLineup, clubID: home.id)
-        addGoals(awayGoals, lineup: awayLineup, clubID: away.id)
-
-        var injuries: [(UUID, Int)] = []
-        func rollInjuries(_ lineup: [LineupSlot], club: Club) {
-            let medical = Double(club.facilities.medical)
-            let chance = 0.012 * (1.25 - medical * 0.05)
-            for entry in lineup where rng.chance(chance) {
-                var weeks = rng.chance(0.1) ? rng.int(8...16) : rng.int(1...6)
-                weeks = max(1, Int((Double(weeks) * (1.1 - medical * 0.04)).rounded()))
-                injuries.append((entry.player.id, weeks))
-                events.append(MatchEvent(minute: rng.int(1...90), kind: .injury, clubID: club.id, playerID: entry.player.id, assistID: nil))
-            }
-        }
-        rollInjuries(homeLineup, club: home)
-        rollInjuries(awayLineup, club: away)
+        var injuries: [(playerID: UUID, weeks: Int)] = []
+        rollInjuries(homeStints, club: home, events: &events, injuries: &injuries, rng: &rng)
+        rollInjuries(awayStints, club: away, events: &events, injuries: &injuries, rng: &rng)
         events.sort { $0.minute < $1.minute }
 
         var ratings: [PlayerRating] = []
-        func rate(_ lineup: [LineupSlot], clubID: UUID, scored: Int, conceded: Int) {
-            guard !lineup.isEmpty else { return }
-            let teamAverage = lineup.map(\.effectiveRating).reduce(0, +) / Double(lineup.count)
-            for entry in lineup {
-                var rating = 6.4 + rng.normal(sd: 0.45)
-                if scored > conceded { rating += 0.4 } else if scored < conceded { rating -= 0.35 }
-                rating += Double(goalsBy[entry.player.id] ?? 0) * 1.0
-                rating += Double(assistsBy[entry.player.id] ?? 0) * 0.6
-                rating += (entry.effectiveRating - teamAverage) / 25
-                switch entry.slot.line {
-                case .goalkeeper:
-                    rating += conceded == 0 ? 0.6 : -0.25 * Double(conceded)
-                case .defence:
-                    rating += conceded == 0 ? 0.5 : -0.18 * Double(conceded)
-                case .midfield where entry.slot == .defensiveMid:
-                    rating += conceded == 0 ? 0.3 : -0.1 * Double(conceded)
-                default:
-                    break
-                }
-                ratings.append(PlayerRating(playerID: entry.player.id, clubID: clubID, rating: (rating * 10).rounded() / 10))
-            }
-        }
-        rate(homeLineup, clubID: home.id, scored: homeGoals, conceded: awayGoals)
-        rate(awayLineup, clubID: away.id, scored: awayGoals, conceded: homeGoals)
-        for index in ratings.indices {
-            ratings[index].rating = ratings[index].rating.clamped(to: 3.5...10)
-        }
+        var appearances: [Appearance] = []
+        rate(homeStints, clubID: home.id, scored: homeGoals, conceded: awayGoals, goals: goalsBy, assists: assistsBy,
+             ratings: &ratings, appearances: &appearances, rng: &rng)
+        rate(awayStints, clubID: away.id, scored: awayGoals, conceded: homeGoals, goals: goalsBy, assists: assistsBy,
+             ratings: &ratings, appearances: &appearances, rng: &rng)
 
-        // Higher ticket prices than the "fair" price for this reputation keep fans away.
+        // Ticket prices above what fans think is fair keep some of them away.
         let fairPrice = 12 + Double(home.reputation) * 0.45
         let pricePenalty = max(-0.1, (Double(home.stadium.ticketPrice) - fairPrice) / fairPrice * 0.35)
-        let fill = (0.4 + Double(home.reputation) / 130 - pricePenalty + rng.double(-0.05...0.05)).clamped(to: 0.2...1.0)
+        let fill = (0.4 + Double(home.reputation) / 130 - pricePenalty + attendanceBoost + rng.double(-0.05...0.05))
+            .clamped(to: 0.2...1.0)
         let attendance = Int(Double(home.stadium.capacity) * fill)
 
         let result = MatchResult(
@@ -176,11 +108,136 @@ public enum MatchEngine {
             homeExpectedGoals: (homeXG * 100).rounded() / 100,
             awayExpectedGoals: (awayXG * 100).rounded() / 100
         )
-        return Outcome(
-            result: result,
-            injuries: injuries.map { (playerID: $0.0, weeks: $0.1) },
-            homeLineup: homeLineup,
-            awayLineup: awayLineup
-        )
+        return Outcome(result: result, injuries: injuries, appearances: appearances)
+    }
+
+    /// Starters plus 2–3 substitutions between minutes 55 and 85. The most tired outfield
+    /// players come off for the best fitting substitute.
+    private static func makeStints(_ sheet: TeamSheet, clubID: UUID, events: inout [MatchEvent], rng: inout SeededRandom) -> [Stint] {
+        var stints = sheet.starters.map {
+            Stint(slot: $0.slot, player: $0.player, rating: $0.effectiveRating, from: 0, to: 90)
+        }
+        var bench = sheet.bench.filter { $0.position != .goalkeeper && !$0.isInjured }
+        guard !bench.isEmpty, !stints.isEmpty else { return stints }
+
+        let count = min(bench.count, rng.int(2...3))
+        var minutes: [Int] = []
+        for _ in 0..<count { minutes.append(rng.int(55...85)) }
+        minutes.sort()
+
+        for minute in minutes {
+            var outIndex: Int?
+            var lowest = Double.infinity
+            for index in stints.indices where stints[index].from == 0 && stints[index].to == 90 && stints[index].slot != .goalkeeper {
+                let score = Double(stints[index].player.fitness) + rng.double(0...30)
+                if score < lowest {
+                    lowest = score
+                    outIndex = index
+                }
+            }
+            guard let outIndex else { break }
+            let slot = stints[outIndex].slot
+            guard let incoming = bench.max(by: { Selection.rating(of: $0, in: slot) < Selection.rating(of: $1, in: slot) }) else { break }
+            stints[outIndex].to = minute
+            stints.append(Stint(slot: slot, player: incoming, rating: Selection.rating(of: incoming, in: slot), from: minute, to: 90))
+            bench.removeAll { $0.id == incoming.id }
+            events.append(MatchEvent(minute: minute, kind: .substitution, clubID: clubID,
+                                     playerID: stints[outIndex].player.id, assistID: nil, subInID: incoming.id))
+        }
+        return stints
+    }
+
+    private static func addGoals(
+        _ count: Int,
+        stints: [Stint],
+        clubID: UUID,
+        events: inout [MatchEvent],
+        goals: inout [UUID: Int],
+        assists: inout [UUID: Int],
+        rng: inout SeededRandom
+    ) {
+        guard !stints.isEmpty else { return }
+        for _ in 0..<count {
+            let minute = rng.int(1...90)
+            let onPitch = stints.filter { $0.isOnPitch(at: minute) }
+            guard !onPitch.isEmpty else { continue }
+            let scorerWeights = onPitch.map { $0.slot.scoringWeight * pow(Double($0.player.attributes.shooting) / 65, 2.5) }
+            guard let scorerIndex = rng.weightedIndex(scorerWeights) else { continue }
+            let scorer = onPitch[scorerIndex].player
+            var assistID: UUID?
+            if rng.chance(0.75) {
+                var weights: [Double] = []
+                for (index, stint) in onPitch.enumerated() {
+                    let weight = stint.slot.assistWeight * pow(Double(stint.player.attributes.passing) / 65, 2)
+                    weights.append(index == scorerIndex ? 0 : weight)
+                }
+                if let assistIndex = rng.weightedIndex(weights) {
+                    assistID = onPitch[assistIndex].player.id
+                }
+            }
+            goals[scorer.id, default: 0] += 1
+            if let assistID { assists[assistID, default: 0] += 1 }
+            events.append(MatchEvent(minute: minute, kind: .goal, clubID: clubID, playerID: scorer.id, assistID: assistID))
+        }
+    }
+
+    /// Tired players and clubs with a poor medical centre get hurt more often.
+    private static func rollInjuries(
+        _ stints: [Stint],
+        club: Club,
+        events: inout [MatchEvent],
+        injuries: inout [(playerID: UUID, weeks: Int)],
+        rng: inout SeededRandom
+    ) {
+        let medical = Double(club.facilities.medical)
+        for stint in stints where stint.minutes > 0 {
+            let tiredness = 1 + Double(max(0, 80 - stint.player.fitness)) / 25
+            let chance = 0.012 * (1.25 - medical * 0.05) * tiredness * Double(stint.minutes) / 90
+            guard rng.chance(chance) else { continue }
+            var weeks = rng.chance(0.1) ? rng.int(8...16) : rng.int(1...6)
+            weeks = max(1, Int((Double(weeks) * (1.1 - medical * 0.04)).rounded()))
+            injuries.append((playerID: stint.player.id, weeks: weeks))
+            events.append(MatchEvent(minute: rng.int((stint.from + 1)...stint.to), kind: .injury, clubID: club.id,
+                                     playerID: stint.player.id, assistID: nil))
+        }
+    }
+
+    private static func rate(
+        _ stints: [Stint],
+        clubID: UUID,
+        scored: Int,
+        conceded: Int,
+        goals: [UUID: Int],
+        assists: [UUID: Int],
+        ratings: inout [PlayerRating],
+        appearances: inout [Appearance],
+        rng: inout SeededRandom
+    ) {
+        guard !stints.isEmpty else { return }
+        let teamAverage = stints.map(\.rating).reduce(0, +) / Double(stints.count)
+        for stint in stints where stint.minutes > 0 {
+            // Short cameos stay close to an average 6.4.
+            let share = min(1, Double(stint.minutes) / 70)
+            var swing = rng.normal(sd: 0.45)
+            if scored > conceded { swing += 0.4 } else if scored < conceded { swing -= 0.35 }
+            swing += (stint.rating - teamAverage) / 25
+            switch stint.slot.line {
+            case .goalkeeper:
+                swing += conceded == 0 ? 0.6 : -0.25 * Double(conceded)
+            case .defence:
+                swing += conceded == 0 ? 0.5 : -0.18 * Double(conceded)
+            case .midfield where stint.slot == .defensiveMid:
+                swing += conceded == 0 ? 0.3 : -0.1 * Double(conceded)
+            default:
+                break
+            }
+            let playerGoals = goals[stint.player.id] ?? 0
+            let playerAssists = assists[stint.player.id] ?? 0
+            var rating = 6.4 + swing * share + Double(playerGoals) * 1.0 + Double(playerAssists) * 0.6
+            rating = ((rating * 10).rounded() / 10).clamped(to: 3.5...10)
+            ratings.append(PlayerRating(playerID: stint.player.id, clubID: clubID, rating: rating, minutes: stint.minutes))
+            appearances.append(Appearance(playerID: stint.player.id, clubID: clubID, minutes: stint.minutes,
+                                          rating: rating, goals: playerGoals, assists: playerAssists))
+        }
     }
 }

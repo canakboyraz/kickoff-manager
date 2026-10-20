@@ -132,6 +132,30 @@ enum MessageText {
                 title: L("msg.season.title", Fmt.seasonLabel(season)),
                 body: L("msg.season.body", String(position), Fmt.money(prize))
             )
+        case .cupQualified(let kind, let season):
+            return Content(
+                icon: kind.icon, color: kind.color,
+                title: L("msg.cupQualified.title", kind.label),
+                body: L("msg.cupQualified.body", Fmt.seasonLabel(season), kind.label)
+            )
+        case .cupProgress(let kind, let stage, let prize):
+            return Content(
+                icon: kind.icon, color: kind.color,
+                title: L("msg.cupProgress.title", kind.label, stage.label),
+                body: L("msg.cupProgress.body", stage.label, Fmt.money(prize))
+            )
+        case .cupEliminated(let kind, let stage):
+            return Content(
+                icon: "xmark.shield.fill", color: Theme.textSecondary,
+                title: L("msg.cupOut.title", kind.label),
+                body: L("msg.cupOut.body", stage.label)
+            )
+        case .cupWon(let kind, let prize):
+            return Content(
+                icon: "trophy.fill", color: Theme.goldLight,
+                title: L("msg.cupWon.title", kind.label),
+                body: L("msg.cupWon.body", kind.label, Fmt.money(prize))
+            )
         }
     }
 }

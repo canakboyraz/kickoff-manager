@@ -19,10 +19,21 @@ struct HomeView: View {
                 if career.isTransferWindowOpen {
                     windowBanner(career)
                 }
+                if let cupMatch = career.nextUserCupMatch {
+                    cupMatchBanner(cupMatch.cup, fixture: cupMatch.fixture, career: career)
+                }
                 nextMatchCard(career)
+                if let cupMatch = career.lastUserCupMatch, cupMatch.fixture.week >= career.week - 1 {
+                    NavigationLink(value: MatchLink(fixtureID: cupMatch.fixture.id)) {
+                        ResultCard(homeID: cupMatch.fixture.homeID, awayID: cupMatch.fixture.awayID,
+                                   result: cupMatch.fixture.result, caption: cupMatch.cup.kind.label, career: career)
+                    }
+                    .buttonStyle(.plain)
+                }
                 if let last = career.lastUserFixture {
                     NavigationLink(value: MatchLink(fixtureID: last.id)) {
-                        ResultCard(fixture: last, career: career)
+                        ResultCard(homeID: last.homeID, awayID: last.awayID, result: last.result,
+                                   caption: L("home.lastResult"), career: career)
                     }
                     .buttonStyle(.plain)
                 }
@@ -129,6 +140,39 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    /// Midweek European game coming up this week.
+    private func cupMatchBanner(_ cup: Cup, fixture: CupFixture, career: Career) -> some View {
+        let opponentID = fixture.homeID == career.userClubID ? fixture.awayID : fixture.homeID
+        let isHome = fixture.homeID == career.userClubID && !fixture.isNeutral
+        return HStack(spacing: 12) {
+            Image(systemName: cup.kind.icon)
+                .font(.title2)
+                .foregroundStyle(cup.kind.color)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(L("home.midweek", cup.kind.label))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(cup.kind.color)
+                Text(fixture.stageCaption)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textMuted)
+                if let opponent = career.club(opponentID) {
+                    HStack(spacing: 6) {
+                        Text(isHome ? L("home.vsHome") : (fixture.isNeutral ? L("home.vsNeutral") : L("home.vsAway")))
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Theme.textSecondary)
+                        CrestView(club: opponent, size: 18)
+                        Text(opponent.name)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .gameCard(padding: 12, highlight: cup.kind.color.opacity(0.6))
+    }
+
     private func teamColumn(_ club: Club, career: Career) -> some View {
         VStack(spacing: 6) {
             CrestView(club: club, size: 46)
@@ -155,7 +199,7 @@ struct HomeView: View {
                         ForEach(Array(scorers)) { player in
                             NavigationLink(value: PlayerLink(id: player.id)) {
                                 VStack(spacing: 4) {
-                                    PlayerCardView(player: player, season: career.season)
+                                    PlayerCardView(player: player)
                                     Text(L("home.goalsRating", String(player.stats.goals), Fmt.rating(player.stats.averageRating)))
                                         .font(.caption2)
                                         .foregroundStyle(Theme.textMuted)
@@ -210,14 +254,15 @@ struct PitchBackground: View {
 }
 
 struct ResultCard: View {
-    let fixture: Fixture
+    let homeID: UUID
+    let awayID: UUID
+    let result: MatchResult?
+    let caption: String
     let career: Career
 
     var body: some View {
-        if let result = fixture.result,
-           let home = career.club(fixture.homeID),
-           let away = career.club(fixture.awayID) {
-            let userIsHome = fixture.homeID == career.userClubID
+        if let result, let home = career.club(homeID), let away = career.club(awayID) {
+            let userIsHome = homeID == career.userClubID
             let userGoals = userIsHome ? result.homeGoals : result.awayGoals
             let otherGoals = userIsHome ? result.awayGoals : result.homeGoals
             let outcome = userGoals > otherGoals ? "W" : (userGoals == otherGoals ? "D" : "L")
@@ -233,9 +278,10 @@ struct ResultCard: View {
                     .foregroundStyle(Theme.textPrimary)
                 CrestView(club: away, size: 26)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("home.lastResult"))
+                    Text(caption)
                         .font(.caption2)
                         .foregroundStyle(Theme.textMuted)
+                        .lineLimit(1)
                     Text(userIsHome ? away.name : home.name)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.textSecondary)
@@ -262,6 +308,10 @@ struct WeekReportSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
+                    if let career = store.career, let fixture = report.userCupFixture, let kind = report.userCupKind {
+                        let match = career.cupMatch(fixture.id)
+                        MatchSummaryView(cupFixture: match?.fixture ?? fixture, kind: kind, cup: match?.cup, career: career)
+                    }
                     if let career = store.career, let fixture = report.userFixture {
                         MatchSummaryView(fixture: fixture, career: career)
                     }

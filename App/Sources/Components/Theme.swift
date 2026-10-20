@@ -38,6 +38,13 @@ enum Theme {
     static func moraleColor(_ morale: Int) -> Color {
         morale >= 65 ? positive : (morale >= 40 ? warning : negative)
     }
+
+    static func fitnessColor(_ fitness: Int) -> Color {
+        fitness >= 80 ? positive : (fitness >= 60 ? warning : negative)
+    }
+
+    static let elite = Color(hex: "AFA9EC")
+    static let continental = Color(hex: "5DCAA5")
 }
 
 extension Color {
@@ -145,6 +152,7 @@ struct ValueBar: View {
     let value: Int
     var maxValue: Int = 99
     var color: Color
+    var height: CGFloat = 6
 
     var body: some View {
         GeometryReader { proxy in
@@ -155,6 +163,21 @@ struct ValueBar: View {
                     .frame(width: proxy.size.width * CGFloat(min(value, maxValue)) / CGFloat(maxValue))
             }
         }
-        .frame(height: 6)
+        .frame(height: height)
+    }
+}
+
+/// Title on the left, value on the right.
+struct InfoRow: View {
+    let title: String
+    let value: String
+    var color: Color = Theme.textPrimary
+
+    var body: some View {
+        HStack {
+            Text(title).font(.subheadline).foregroundStyle(Theme.textSecondary)
+            Spacer()
+            Text(value).font(.subheadline.weight(.semibold)).foregroundStyle(color)
+        }
     }
 }

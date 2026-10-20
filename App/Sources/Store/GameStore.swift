@@ -8,6 +8,8 @@ import GameEngine
 final class GameStore {
     private(set) var career: Career?
     private(set) var isSimulating = false
+    /// True when an old save from an earlier version couldn't be loaded.
+    private(set) var didResetSave = false
     /// Set after a week is played so the UI can show the match report.
     var presentedReport: PresentedReport?
 
@@ -24,10 +26,13 @@ final class GameStore {
 
     func load() {
         guard let data = try? Data(contentsOf: saveURL) else { return }
-        do {
-            career = try JSONDecoder().decode(Career.self, from: data)
-        } catch {
-            print("Save could not be read: \(error)")
+        if let decoded = try? JSONDecoder().decode(Career.self, from: data),
+           decoded.version == Career.currentVersion {
+            career = decoded
+        } else {
+            // Saves from older versions use a different format; start fresh.
+            didResetSave = true
+            try? FileManager.default.removeItem(at: saveURL)
         }
     }
 
