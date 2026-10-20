@@ -224,14 +224,18 @@ final class GameEngineTests: XCTestCase {
         }
     }
 
-    func testClubWalksAwayAfterInsultingBids() {
+    func testClubWalksAwayAfterRunningOutOfPatience() {
         var career = Career.generate(seed: 32)
         career.chooseClub(career.leagues[1].clubIDs[0])
         let target = career.marketPlayers(filter: TransferFilter(maxPrice: 3_000_000)).first!
-        _ = career.negotiateFee(playerID: target.id, fee: 50_000)
-        let second = career.negotiateFee(playerID: target.id, fee: 50_000)
-        XCTAssertEqual(second, .walkedAway)
-        XCTAssertEqual(career.negotiateFee(playerID: target.id, fee: 50_000_000 / 100), .walkedAway)
+        // Lowball bids use up one round of patience each; the club eventually walks away.
+        var responses: [FeeResponse] = []
+        for _ in 0..<Career.talkPatience {
+            responses.append(career.negotiateFee(playerID: target.id, fee: 50_000))
+        }
+        XCTAssertTrue(responses.dropLast().allSatisfy { if case .counter = $0 { return true } else { return false } })
+        XCTAssertEqual(responses.last, .walkedAway)
+        XCTAssertEqual(career.negotiateFee(playerID: target.id, fee: 50_000_000), .walkedAway)
     }
 
     func testIncomingOfferCounter() {
