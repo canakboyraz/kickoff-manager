@@ -3,13 +3,17 @@
 FC kariyer modu sadeliğinde, kurgusal takımlarla oynanan bir iOS futbol menajerlik oyunu.
 SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 
-## Neler var (v0.1)
+## Neler var (v0.2)
 
 - **5 kurgusal lig**: Hilal Lig (TR), Albion Premier (EN), Liga Ibérica (ES), Bundesklasse (DE), Serie Azzurra (IT). Her ligde 18 kulüp, kulüp başına 24 oyuncu.
-- **Maç simülasyonu**: en iyi 11 otomatik seçilir (4-3-3), takım gücünden beklenen gol (xG) hesaplanır, skor, golcüler, asistler, sakatlıklar ve oyuncu puanları üretilir.
-- **Sezon döngüsü**: 34 hafta, ödül parası, itibar değişimi, emeklilikler, sözleşme bitişleri, altyapıdan genç oyuncular, yeni fikstür.
-- **Oyuncu gelişimi**: yaş, potansiyel, oynama süresi ve antrenman tesisi seviyesine bağlı.
-- **Transferler**: oyuncu arama ve filtreler, teklif verme (istenen bedel, maaş talebi), yaz ve devre arası transfer dönemleri, diğer kulüplerden gelen teklifler.
+- **Kadro ve diziliş**: 5 diziliş (4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2). İlk 11, 7 yedek ve kadro dışı aynı ekranda; iki oyuncuya sırayla dokunarak yer değiştirilir. Otomatik diz butonu.
+- **Oyuncu kartları**: genel güç, mevki, en iyi 3 özellik ve kondisyon çubuğu.
+- **Kondisyon ve yorgunluk**: her maç kondisyon düşürür, hafta içinde toparlanır (sağlık merkezi hızlandırır). Yorgun oyuncu daha kötü oynar ve daha kolay sakatlanır. Maçta en yorgunlar 55–85. dakikalar arasında yedeklerle değişir.
+- **Maç simülasyonu**: xG tabanlı skor, golcüler, asistler, oyuncu değişiklikleri, sakatlıklar, oyuncu puanları.
+- **Transfer pazarlığı**: önce kulüple bonservis (karşı teklif, sabır, çok düşük teklife sinirlenme), sonra oyuncuyla maaş ve süre. Büyük yıldızlar küçük kulübe gelmek istemez.
+- **Satış**: oyuncuyu transfer listesine koyma, gelen tekliflere kabul, ret ya da pazarlık (karşı teklif).
+- **Avrupa kupaları**: lig ilk 3'ü bir sonraki sezon Elit Kupa'ya, 4–6. sıralar Kıta Ligi'ne katılır (en güçlü ligde bir fazla). 4 grup, iki maçlı çeyrek ve yarı final, tarafsız sahada final. Hafta ortası oynanır; bilet geliri ve ödül parası lig maçlarından yüksektir.
+- **Sezon döngüsü**: ödül parası, itibar değişimi, emeklilikler, sözleşme bitişleri, altyapıdan genç oyuncular, yeni fikstür ve kupa kuraları.
 - **Kulüp yönetimi**: antrenman, altyapı, sağlık tesisi yükseltmeleri; stadyum genişletme; bilet fiyatı; gelir ve giderler.
 - **Türkçe + İngilizce** arayüz, otomatik kayıt.
 
@@ -33,7 +37,11 @@ Oyun dengesini ayarlamak için en önemli yerler:
 | Ne | Nerede |
 |---|---|
 | Takım/lig isimleri, renkler, stadyumlar | `Generation/WorldData.swift` |
-| Maçta gol beklentisi, ev sahibi avantajı | `Simulation/MatchEngine.swift` |
+| Maçta gol beklentisi, ev sahibi avantajı, oyuncu değişikliği | `Simulation/MatchEngine.swift` |
+| Kadro seçimi, kondisyonun performansa etkisi | `Simulation/Selection.swift` |
+| Kondisyon kaybı ve toparlanma | `Career/Career+Season.swift` |
+| Avrupa kontenjanları, ödüller, bilet çarpanı | `Career/Career+Europe.swift` |
+| Pazarlık kuralları, gelen teklif sıklığı | `Career/Career+Transfers.swift` |
 | Oyuncu gelişim hızı | `Career/Career+Development.swift` |
 | Piyasa değeri, maaşlar | `Models/Player.swift` |
 | Bütçeler, bilet fiyatı, ödül parası | `Career/Career+Generation.swift`, `Career+Season.swift` |
