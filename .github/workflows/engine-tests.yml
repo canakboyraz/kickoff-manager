@@ -1,0 +1,17 @@
+# Runs the game engine tests on Linux for every push (cheap and fast).
+# The iOS app itself is built by Codemagic (see codemagic.yaml).
+name: Engine tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        working-directory: Packages/GameEngine
+        run: swift test

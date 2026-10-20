@@ -1,0 +1,68 @@
+# Codemagic builds the iOS app on a cloud Mac and sends it to TestFlight.
+# Setup steps are in README.md ("Bulutta derleme").
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      # Name of the App Store Connect API key you add in Codemagic
+      # (Team settings → Team integrations → Developer Portal).
+      app_store_connect: kickoff_asc
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        # Must match PRODUCT_BUNDLE_IDENTIFIER in project.yml.
+        bundle_identifier: com.kickoffmanager.game
+      vars:
+        XCODE_PROJECT: KickoffManager.xcodeproj
+        XCODE_SCHEME: KickoffManager
+        # The numeric "Apple ID" of the app, shown in App Store Connect → App Information.
+        APP_STORE_APPLE_ID: 0000000000
+      xcode: latest
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Install XcodeGen
+        script: brew install xcodegen
+      - name: Generate Xcode project
+        script: xcodegen generate
+      - name: Run game engine tests
+        script: |
+          cd Packages/GameEngine
+          swift test
+      - name: Use signing profiles
+        script: xcode-project use-profiles
+      - name: Set build number
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          agvtool new-version -all $((LATEST + 1))
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  engine-tests:
+    name: Engine tests only
+    max_build_duration: 20
+    instance_type: mac_mini_m2
+    triggering:
+      events:
+        - pull_request
+    scripts:
+      - name: Run game engine tests
+        script: |
+          cd Packages/GameEngine
+          swift test

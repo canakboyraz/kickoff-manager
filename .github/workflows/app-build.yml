@@ -1,0 +1,34 @@
+# Compiles the iOS app on a GitHub macOS runner (no signing) to catch build errors
+# early. Shipping to TestFlight is done by Codemagic (see codemagic.yaml).
+name: App build check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project KickoffManager.xcodeproj \
+            -scheme KickoffManager \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
