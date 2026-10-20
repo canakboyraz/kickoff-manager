@@ -4,7 +4,11 @@ name: App build check
 
 on:
   push:
+    branches-ignore: ['ci-logs-*']
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -24,14 +28,20 @@ jobs:
             -scheme KickoffManager \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || true
-          # Surface compiler errors as annotations (readable from the API without log access).
-          grep -E "error:" build.log | sort -u | head -40 | while IFS= read -r line; do
-            echo "::error::${line}"
-          done
           grep -q "BUILD SUCCEEDED" build.log
-      - name: Upload build log
+      - name: Publish log to ci-logs branch
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
+        shell: bash
+        env:
+          LOG_NAME: app
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          mkdir -p /tmp/ci-logs && cp build.log /tmp/ci-logs/$LOG_NAME.log 2>/dev/null || echo "no log" > /tmp/ci-logs/$LOG_NAME.log
+          cd /tmp/ci-logs
+          git init -q
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git checkout -q -b ci-logs-$LOG_NAME
+          git add -A
+          git commit -qm "log for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ci-logs-$LOG_NAME
