@@ -65,7 +65,12 @@ public struct Attributes: Codable, Hashable, Sendable {
 
     public func overall(for position: Position) -> Int {
         let weights = Attributes.weights(for: position)
-        let total = weights.reduce(0.0) { $0 + Double(self[$1.key]) * $1.value }
+        // Sum in a fixed order: dictionary order varies between instances, and a different
+        // order of floating-point additions can round a .5 total differently.
+        var total = 0.0
+        for kind in AttributeKind.allCases {
+            if let weight = weights[kind] { total += Double(self[kind]) * weight }
+        }
         return Int(total.rounded()).clamped(to: Attributes.range)
     }
 }
