@@ -235,7 +235,7 @@ final class GameEngineTests: XCTestCase {
         }
         XCTAssertTrue(responses.dropLast().allSatisfy { if case .counter = $0 { return true } else { return false } })
         XCTAssertEqual(responses.last, .walkedAway)
-        XCTAssertEqual(career.negotiateFee(playerID: target.id, fee: 50_000_000), .walkedAway)
+        XCTAssertEqual(career.negotiateFee(playerID: target.id, fee: 100_000), .walkedAway)
     }
 
     func testIncomingOfferCounter() {
