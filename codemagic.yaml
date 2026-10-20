@@ -13,7 +13,7 @@ workflows:
       ios_signing:
         distribution_type: app_store
         # Must match PRODUCT_BUNDLE_IDENTIFIER in project.yml.
-        bundle_identifier: com.kickoffmanager.game
+        bundle_identifier: com.canakboyraz.kickoffmanager
       vars:
         XCODE_PROJECT: KickoffManager.xcodeproj
         XCODE_SCHEME: KickoffManager
