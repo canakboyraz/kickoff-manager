@@ -200,7 +200,7 @@ final class GameEngineTests: XCTestCase {
         let asking = career.askingPrice(for: target.id)
 
         // A low bid gets a counter-offer between the bid and the asking price.
-        let lowBid = Career.roundTo(Double(asking) * 0.7, step: 50_000)
+        let lowBid = Career.roundTo(Double(asking) * 0.5, step: 50_000)
         guard case .counter(let counter, _) = career.negotiateFee(playerID: target.id, fee: lowBid) else {
             return XCTFail("expected a counter-offer")
         }
