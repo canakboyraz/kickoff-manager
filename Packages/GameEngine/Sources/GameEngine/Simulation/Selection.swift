@@ -57,7 +57,7 @@ public enum Selection {
     /// A bench with a spare keeper first, then the best remaining fit players.
     public static func bench(from pool: [Player], excluding: Set<UUID>, size: Int = Tactics.benchSize) -> [Player] {
         guard size > 0 else { return [] }
-        let available = pool.filter { !excluding.contains($0.id) && !$0.isInjured }
+        let available = pool.filter { !excluding.contains($0.id) && $0.isAvailable }
         var bench: [Player] = []
         if let keeper = available.filter({ $0.position == .goalkeeper }).max(by: { $0.overall < $1.overall }) {
             bench.append(keeper)
@@ -80,7 +80,7 @@ public enum Selection {
 
     /// Best available eleven and bench (used by AI clubs every match).
     public static func autoSheet(squad: [Player], formation: Formation) -> TeamSheet {
-        let fit = squad.filter { !$0.isInjured }
+        let fit = squad.filter { $0.isAvailable }
         let slots = formation.slots
         let picked = fill(slots: slots, preset: [], pool: fit)
         let starters = lineupSlots(slots: slots, players: picked)

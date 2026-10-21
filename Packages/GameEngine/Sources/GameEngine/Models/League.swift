@@ -4,6 +4,8 @@ public enum MatchEventKind: String, Codable, Hashable, Sendable {
     case goal
     case injury
     case substitution
+    case yellowCard
+    case redCard
 }
 
 public struct MatchEvent: Codable, Hashable, Sendable {

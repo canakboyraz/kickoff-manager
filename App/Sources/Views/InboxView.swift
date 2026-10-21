@@ -201,6 +201,12 @@ enum MessageText {
                 title: L("msg.newJob.title"),
                 body: L("msg.newJob.body", clubName(clubID))
             )
+        case .suspension(let playerID, let matches, let reason):
+            return Content(
+                icon: "rectangle.portrait.fill", color: Theme.negative,
+                title: L("msg.suspension.title"),
+                body: L("msg.suspension.\(reason.rawValue)", playerName(playerID), String(matches))
+            )
         case .seasonReview(let expected, let position, let confidence):
             let tone: Color = position <= expected ? Theme.positive : (position - expected <= 3 ? Theme.warning : Theme.negative)
             return Content(

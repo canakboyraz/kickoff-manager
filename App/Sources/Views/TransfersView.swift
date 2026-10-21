@@ -223,10 +223,19 @@ struct TransfersView: View {
                         PlayerRow(player: player, season: career.season, trailing: Fmt.money(player.marketValue(season: career.season)))
                     }
                     .buttonStyle(.plain)
-                    Button(L("player.unlist")) {
-                        store.update { $0.setTransferListed(player.id, listed: false) }
+                    HStack(spacing: 8) {
+                        Button(L("player.unlist")) {
+                            store.update { $0.setTransferListed(player.id, listed: false) }
+                        }
+                        .buttonStyle(OutlineButtonStyle(color: Theme.warning))
+                        if career.isTransferWindowOpen {
+                            Button(L("player.offerToClubs")) {
+                                let bids = store.update { $0.offerToClubs(player.id) } ?? 0
+                                notice = bids > 0 ? L("player.offered.bids", String(bids)) : L("player.offered.none")
+                            }
+                            .buttonStyle(OutlineButtonStyle(color: Theme.goldLight))
+                        }
                     }
-                    .buttonStyle(OutlineButtonStyle(color: Theme.warning))
                 }
                 .gameCard()
             }

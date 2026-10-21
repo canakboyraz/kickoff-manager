@@ -151,20 +151,36 @@ struct HomeView: View {
                 }
             }
 
-            Button {
-                Task { await store.playWeek() }
-            } label: {
-                HStack(spacing: 8) {
-                    if store.isSimulating {
-                        ProgressView().tint(Theme.goldDark)
-                    } else {
-                        Image(systemName: "play.fill")
+            if career.needsLineupChanges {
+                // The manager has to sort out the team sheet before kick-off.
+                VStack(spacing: 8) {
+                    Text(lineupProblem(career))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                    Button {
+                        store.selectedTab = .squad
+                    } label: {
+                        Label(L("home.fixLineup"), systemImage: "exclamationmark.triangle.fill")
                     }
-                    Text(store.isSimulating ? L("home.simulating") : L("home.playWeek"))
+                    .buttonStyle(GoldButtonStyle())
                 }
+            } else {
+                Button {
+                    Task { await store.playWeek() }
+                } label: {
+                    HStack(spacing: 8) {
+                        if store.isSimulating {
+                            ProgressView().tint(Theme.goldDark)
+                        } else {
+                            Image(systemName: "play.fill")
+                        }
+                        Text(store.isSimulating ? L("home.simulating") : L("home.playWeek"))
+                    }
+                }
+                .buttonStyle(GoldButtonStyle())
+                .disabled(store.isSimulating)
             }
-            .buttonStyle(GoldButtonStyle())
-            .disabled(store.isSimulating)
         }
         .padding(14)
         .frame(maxWidth: .infinity)
@@ -203,6 +219,14 @@ struct HomeView: View {
             Spacer(minLength: 0)
         }
         .gameCard(padding: 12, highlight: cup.kind.color.opacity(0.6))
+    }
+
+    private func lineupProblem(_ career: Career) -> String {
+        let names = career.unavailableStarters.map(\.shortName).joined(separator: ", ")
+        if !names.isEmpty {
+            return L("home.unavailableStarters", names)
+        }
+        return L("home.emptySlots", String(career.emptyStarterSlots))
     }
 
     private func teamColumn(_ club: Club, career: Career) -> some View {
@@ -258,10 +282,47 @@ struct HomeView: View {
                         .foregroundStyle(Theme.gold)
                 }
             }
-            ForEach(career.inbox.suffix(3).reversed()) { message in
+            squadNews(career)
+            ForEach(career.inbox.suffix(5).reversed()) { message in
                 MessageRow(message: message, career: career)
-                    .gameCard(padding: 12)
+                    .gameCard(padding: 12, highlight: message.isRead ? nil : Theme.gold.opacity(0.5))
             }
+        }
+    }
+
+    /// Injured and suspended players at a glance.
+    @ViewBuilder
+    private func squadNews(_ career: Career) -> some View {
+        let out = career.userSquad.filter { !$0.isAvailable }
+        if !out.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(L("home.squadNews"), systemImage: "cross.case.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Theme.negative)
+                ForEach(out) { player in
+                    NavigationLink(value: PlayerLink(id: player.id)) {
+                        HStack(spacing: 8) {
+                            Image(systemName: player.isInjured ? "cross.case.fill" : "rectangle.portrait.fill")
+                                .foregroundStyle(Theme.negative)
+                                .frame(width: 18)
+                            Text(player.shortName)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(player.position.shortLabel)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(Theme.textSecondary)
+                            Spacer()
+                            Text(player.isInjured
+                                 ? L("home.injuredFor", String(player.injuryWeeks))
+                                 : L("home.suspendedFor", String(player.suspendedMatches)))
+                                .font(.caption)
+                                .foregroundStyle(Theme.textMuted)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .gameCard(padding: 12, highlight: Theme.negative.opacity(0.5))
         }
     }
 }

@@ -97,8 +97,8 @@ struct SquadView: View {
     private func warnings(_ career: Career) -> some View {
         let starters = career.userStarters
         let picked = starters.compactMap { $0 }
-        let injured = picked.filter(\.isInjured).count
-        let tired = picked.filter { !$0.isInjured && $0.fitness < 70 }.count
+        let injured = picked.filter { !$0.isAvailable }.count
+        let tired = picked.filter { $0.isAvailable && $0.fitness < 70 }.count
         let empty = starters.filter { $0 == nil }.count
         if injured > 0 || tired > 0 || empty > 0 {
             VStack(alignment: .leading, spacing: 6) {

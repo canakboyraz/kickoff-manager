@@ -34,10 +34,19 @@ public enum MatchEngine {
         var assists: Int
     }
 
+    struct Booking {
+        var playerID: UUID
+        var clubID: UUID
+        var isRed: Bool
+        /// Red card for a second yellow (one-match ban, no accumulation).
+        var isSecondYellow: Bool
+    }
+
     struct Outcome {
         var result: MatchResult
         var injuries: [(playerID: UUID, weeks: Int)]
         var appearances: [Appearance]
+        var bookings: [Booking]
     }
 
     /// A spell on the pitch: starters play from 0, substitutes from the minute they come on.
@@ -66,14 +75,31 @@ public enum MatchEngine {
         let awayStrength = strength(of: awaySheet)
         let homeBase = neutral ? 1.17 : 1.32
         let awayBase = neutral ? 1.17 : 1.02
-        let homeXG = (homeBase * exp((homeStrength.attack - awayStrength.defence) / 14)).clamped(to: 0.15...4.0)
-        let awayXG = (awayBase * exp((awayStrength.attack - homeStrength.defence) / 14)).clamped(to: 0.15...4.0)
+        var homeXG = homeBase * exp((homeStrength.attack - awayStrength.defence) / 14)
+        var awayXG = awayBase * exp((awayStrength.attack - homeStrength.defence) / 14)
+
+        // Cards come first: a sending-off leaves a team with ten men for the rest of the game.
+        var events: [MatchEvent] = []
+        var bookings: [Booking] = []
+        let homeSentOff = rollCards(homeSheet, clubID: home.id, events: &events, bookings: &bookings, rng: &rng)
+        let awaySentOff = rollCards(awaySheet, clubID: away.id, events: &events, bookings: &bookings, rng: &rng)
+        for minute in homeSentOff.values {
+            let remaining = Double(90 - minute) / 90
+            homeXG *= 1 - 0.3 * remaining
+            awayXG *= 1 + 0.35 * remaining
+        }
+        for minute in awaySentOff.values {
+            let remaining = Double(90 - minute) / 90
+            awayXG *= 1 - 0.3 * remaining
+            homeXG *= 1 + 0.35 * remaining
+        }
+        homeXG = homeXG.clamped(to: 0.15...4.0)
+        awayXG = awayXG.clamped(to: 0.15...4.0)
         let homeGoals = rng.poisson(homeXG)
         let awayGoals = rng.poisson(awayXG)
 
-        var events: [MatchEvent] = []
-        let homeStints = makeStints(homeSheet, clubID: home.id, events: &events, rng: &rng)
-        let awayStints = makeStints(awaySheet, clubID: away.id, events: &events, rng: &rng)
+        let homeStints = makeStints(homeSheet, clubID: home.id, sentOff: homeSentOff, events: &events, rng: &rng)
+        let awayStints = makeStints(awaySheet, clubID: away.id, sentOff: awaySentOff, events: &events, rng: &rng)
 
         var goalsBy: [UUID: Int] = [:]
         var assistsBy: [UUID: Int] = [:]
@@ -87,10 +113,14 @@ public enum MatchEngine {
 
         var ratings: [PlayerRating] = []
         var appearances: [Appearance] = []
+        var discipline: [UUID: Double] = [:]
+        for booking in bookings {
+            discipline[booking.playerID, default: 0] -= booking.isRed ? 1.2 : 0.2
+        }
         rate(homeStints, clubID: home.id, scored: homeGoals, conceded: awayGoals, goals: goalsBy, assists: assistsBy,
-             ratings: &ratings, appearances: &appearances, rng: &rng)
+             discipline: discipline, ratings: &ratings, appearances: &appearances, rng: &rng)
         rate(awayStints, clubID: away.id, scored: awayGoals, conceded: homeGoals, goals: goalsBy, assists: assistsBy,
-             ratings: &ratings, appearances: &appearances, rng: &rng)
+             discipline: discipline, ratings: &ratings, appearances: &appearances, rng: &rng)
 
         // Ticket prices above what fans think is fair keep some of them away.
         let fairPrice = 12 + Double(home.reputation) * 0.45
@@ -108,16 +138,63 @@ public enum MatchEngine {
             homeExpectedGoals: (homeXG * 100).rounded() / 100,
             awayExpectedGoals: (awayXG * 100).rounded() / 100
         )
-        return Outcome(result: result, injuries: injuries, appearances: appearances)
+        return Outcome(result: result, injuries: injuries, appearances: appearances, bookings: bookings)
+    }
+
+    /// Yellow and red cards for the starters. Returns sent-off players as slot index → minute.
+    private static func rollCards(
+        _ sheet: TeamSheet,
+        clubID: UUID,
+        events: inout [MatchEvent],
+        bookings: inout [Booking],
+        rng: inout SeededRandom
+    ) -> [Int: Int] {
+        var sentOff: [Int: Int] = [:]
+        for (index, entry) in sheet.starters.enumerated() {
+            let yellowChance: Double
+            switch entry.slot {
+            case .goalkeeper: yellowChance = 0.03
+            case .centreBack, .fullBack: yellowChance = 0.15
+            case .defensiveMid: yellowChance = 0.18
+            case .centralMid: yellowChance = 0.12
+            case .attackingMid, .winger, .striker: yellowChance = 0.08
+            }
+            let playerID = entry.player.id
+            if rng.chance(0.006) {
+                let minute = rng.int(10...89)
+                events.append(MatchEvent(minute: minute, kind: .redCard, clubID: clubID, playerID: playerID, assistID: nil))
+                bookings.append(Booking(playerID: playerID, clubID: clubID, isRed: true, isSecondYellow: false))
+                sentOff[index] = minute
+            } else if rng.chance(yellowChance) {
+                let minute = rng.int(5...85)
+                events.append(MatchEvent(minute: minute, kind: .yellowCard, clubID: clubID, playerID: playerID, assistID: nil))
+                if rng.chance(0.05) {
+                    let second = rng.int((minute + 1)...89)
+                    events.append(MatchEvent(minute: second, kind: .redCard, clubID: clubID, playerID: playerID, assistID: nil))
+                    bookings.append(Booking(playerID: playerID, clubID: clubID, isRed: true, isSecondYellow: true))
+                    sentOff[index] = second
+                } else {
+                    bookings.append(Booking(playerID: playerID, clubID: clubID, isRed: false, isSecondYellow: false))
+                }
+            }
+        }
+        return sentOff
     }
 
     /// Starters plus 2–3 substitutions between minutes 55 and 85. The most tired outfield
     /// players come off for the best fitting substitute.
-    private static func makeStints(_ sheet: TeamSheet, clubID: UUID, events: inout [MatchEvent], rng: inout SeededRandom) -> [Stint] {
-        var stints = sheet.starters.map {
-            Stint(slot: $0.slot, player: $0.player, rating: $0.effectiveRating, from: 0, to: 90)
+    private static func makeStints(
+        _ sheet: TeamSheet,
+        clubID: UUID,
+        sentOff: [Int: Int],
+        events: inout [MatchEvent],
+        rng: inout SeededRandom
+    ) -> [Stint] {
+        // Sent-off players leave the pitch and aren't replaced.
+        var stints = sheet.starters.enumerated().map { index, entry in
+            Stint(slot: entry.slot, player: entry.player, rating: entry.effectiveRating, from: 0, to: sentOff[index] ?? 90)
         }
-        var bench = sheet.bench.filter { $0.position != .goalkeeper && !$0.isInjured }
+        var bench = sheet.bench.filter { $0.position != .goalkeeper && $0.isAvailable }
         guard !bench.isEmpty, !stints.isEmpty else { return stints }
 
         let count = min(bench.count, rng.int(2...3))
@@ -209,6 +286,7 @@ public enum MatchEngine {
         conceded: Int,
         goals: [UUID: Int],
         assists: [UUID: Int],
+        discipline: [UUID: Double],
         ratings: inout [PlayerRating],
         appearances: inout [Appearance],
         rng: inout SeededRandom
@@ -234,6 +312,7 @@ public enum MatchEngine {
             let playerGoals = goals[stint.player.id] ?? 0
             let playerAssists = assists[stint.player.id] ?? 0
             var rating = 6.4 + swing * share + Double(playerGoals) * 1.0 + Double(playerAssists) * 0.6
+                + (discipline[stint.player.id] ?? 0)
             rating = ((rating * 10).rounded() / 10).clamped(to: 3.5...10)
             ratings.append(PlayerRating(playerID: stint.player.id, clubID: clubID, rating: rating, minutes: stint.minutes))
             appearances.append(Appearance(playerID: stint.player.id, clubID: clubID, minutes: stint.minutes,

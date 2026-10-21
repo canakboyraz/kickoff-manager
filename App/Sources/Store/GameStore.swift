@@ -12,6 +12,8 @@ final class GameStore {
     private(set) var didResetSave = false
     /// Set after a week is played so the UI can show the match report.
     var presentedReport: PresentedReport?
+    /// Selected tab, so screens can send the user somewhere (e.g. to fix the team sheet).
+    var selectedTab: AppTab = .home
 
     private let saveURL: URL = {
         let folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -72,7 +74,8 @@ final class GameStore {
     // MARK: - Simulation
 
     func playWeek() async {
-        guard let snapshot = career, !isSimulating else { return }
+        // Unavailable starters must be replaced by the manager before kick-off.
+        guard let snapshot = career, !isSimulating, !snapshot.needsLineupChanges else { return }
         isSimulating = true
         let (updated, report) = await Task.detached(priority: .userInitiated) { () -> (Career, WeekReport) in
             var working = snapshot
@@ -100,4 +103,8 @@ final class GameStore {
 struct PresentedReport: Identifiable {
     let id = UUID()
     let report: WeekReport
+}
+
+enum AppTab: Hashable {
+    case home, squad, transfers, club, league
 }

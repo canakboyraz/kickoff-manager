@@ -3,15 +3,16 @@
 FC kariyer modu sadeliğinde, kurgusal takımlarla oynanan bir iOS futbol menajerlik oyunu.
 SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 
-## Neler var (v0.3)
+## Neler var (v0.4)
 
 - **5 kurgusal lig**: Hilal Lig (TR), Albion Premier (EN), Liga Ibérica (ES), Bundesklasse (DE), Serie Azzurra (IT). Her ligde 18 kulüp, kulüp başına 24 oyuncu.
-- **Kadro ve diziliş**: 5 diziliş (4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2). İlk 11, 7 yedek ve kadro dışı aynı ekranda; iki oyuncuya sırayla dokunarak yer değiştirilir. Otomatik diz butonu.
+- **Kadro ve diziliş**: 10 diziliş (4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2, 4-1-4-1, 4-3-1-2, 4-3-2-1, 3-4-3, 4-5-1). İlk 11, 7 yedek ve kadro dışı aynı ekranda; iki oyuncuya sırayla dokunarak yer değiştirilir. Otomatik diz butonu.
 - **Oyuncu kartları**: genel güç, mevki, en iyi 3 özellik ve kondisyon çubuğu.
 - **Kondisyon ve yorgunluk**: her maç kondisyon düşürür, hafta içinde toparlanır (sağlık merkezi hızlandırır). Yorgun oyuncu daha kötü oynar ve daha kolay sakatlanır. Maçta en yorgunlar 55–85. dakikalar arasında yedeklerle değişir.
-- **Maç simülasyonu**: xG tabanlı skor, golcüler, asistler, oyuncu değişiklikleri, sakatlıklar, oyuncu puanları.
+- **Maç simülasyonu**: xG tabanlı skor, golcüler, asistler, oyuncu değişiklikleri, sakatlıklar, sarı/kırmızı kartlar (kırmızıda takım 10 kişi kalır), oyuncu puanları.
+- **Cezalar**: kırmızı kart 1–3 maç, ikinci sarı 1 maç, sezonda her 5. sarı 1 maç. İlk 11'de sakat ya da cezalı oyuncu varken maça girilmez; önce kadro düzenlenmelidir.
 - **Transfer pazarlığı**: önce kulüple bonservis (karşı teklif, sabır, çok düşük teklife sinirlenme), sonra oyuncuyla maaş ve süre. Büyük yıldızlar küçük kulübe gelmek istemez.
-- **Satış**: oyuncuyu transfer listesine koyma, gelen tekliflere kabul, ret ya da pazarlık (karşı teklif).
+- **Satış**: oyuncuyu transfer listesine koyma, transfer döneminde "Kulüplere öner" ile anında teklif toplama, gelen tekliflere kabul, ret ya da pazarlık (karşı teklif).
 - **Avrupa kupaları**: lig ilk 3'ü bir sonraki sezon Elit Kupa'ya, 4–6. sıralar Kıta Ligi'ne katılır (en güçlü ligde bir fazla). 4 grup, iki maçlı çeyrek ve yarı final, tarafsız sahada final. Hafta ortası oynanır; bilet geliri ve ödül parası lig maçlarından yüksektir.
 - **Teknik direktör**: saygınlık puanı, yönetimin hedefi (şampiyonluk, ilk 3, üst sıralar, orta sıralar, ligde kalmak) ve yönetimin güveni. Kötü sonuçlarda önce uyarı gelir, güven dibe vurursa kovulursun ve yeni kulüp seçersin. İyi giden menajere devre arasında ve sezon sonunda daha büyük kulüplerden iş teklifi gelir.
 - **Transfer dönemleri**: yaz (ilk 4 hafta) ve devre arası (4 hafta). Açılış ve kapanışta mesaj gelir, ana sayfada geri sayım görünür.

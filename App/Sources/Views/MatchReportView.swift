@@ -156,6 +156,13 @@ struct MatchSummaryView: View {
                 Text(career.player(event.playerID)?.shortName ?? "?")
                     .font(.subheadline)
                     .foregroundStyle(Theme.textPrimary)
+            case .yellowCard, .redCard:
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(event.kind == .yellowCard ? Color(hex: "FAC775") : Color(hex: "E24B4A"))
+                    .frame(width: 10, height: 14)
+                Text(career.player(event.playerID)?.shortName ?? "?")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textPrimary)
             case .substitution:
                 Image(systemName: "arrow.up.arrow.down").foregroundStyle(Theme.textSecondary)
                 VStack(alignment: .leading, spacing: 1) {

@@ -15,11 +15,11 @@ extension Career {
         let byID = Dictionary(uniqueKeysWithValues: squad.map { ($0.id, $0) })
         var picked: [Player?] = slots.indices.map { index in
             guard index < userTactics.starters.count, let id = userTactics.starters[index],
-                  let player = byID[id], !player.isInjured else { return nil }
+                  let player = byID[id], player.isAvailable else { return nil }
             return player
         }
-        let bench = userTactics.bench.compactMap { byID[$0] }.filter { !$0.isInjured }
-        let fit = squad.filter { !$0.isInjured }
+        let bench = userTactics.bench.compactMap { byID[$0] }.filter { $0.isAvailable }
+        let fit = squad.filter { $0.isAvailable }
         picked = Selection.fill(slots: slots, preset: picked, pool: bench)
         picked = Selection.fill(slots: slots, preset: picked, pool: fit)
 
@@ -42,6 +42,20 @@ extension Career {
                   let player = players[id], player.clubID == userClubID else { return nil }
             return player
         }
+    }
+
+    /// Starters who can't play the next match (injured or suspended).
+    public var unavailableStarters: [Player] {
+        userStarters.compactMap { $0 }.filter { !$0.isAvailable }
+    }
+
+    public var emptyStarterSlots: Int {
+        userStarters.filter { $0 == nil }.count
+    }
+
+    /// The team sheet has to be fixed before the next match.
+    public var needsLineupChanges: Bool {
+        !unavailableStarters.isEmpty || emptyStarterSlots > 0
     }
 
     public var userBench: [Player] {
@@ -79,7 +93,7 @@ extension Career {
 
     /// Picks the best and freshest eleven and bench for the current formation.
     public mutating func autoPickLineup() {
-        let fit = userSquad.filter { !$0.isInjured }
+        let fit = userSquad.filter { $0.isAvailable }
         let picked = Selection.fill(slots: userTactics.formation.slots, preset: [], pool: fit)
         userTactics.starters = picked.map { $0?.id }
         let used = Set(picked.compactMap { $0?.id })
@@ -166,7 +180,7 @@ extension Career {
         if starters.contains(where: { $0 == nil }) {
             let byID = Dictionary(uniqueKeysWithValues: squad.map { ($0.id, $0) })
             let preset = starters.map { $0.flatMap { byID[$0] } }
-            let pool = squad.filter { !$0.isInjured && !seen.contains($0.id) }
+            let pool = squad.filter { $0.isAvailable && !seen.contains($0.id) }
             starters = Selection.fill(slots: slots, preset: preset, pool: pool).map { $0?.id }
             seen.formUnion(starters.compactMap { $0 })
         }

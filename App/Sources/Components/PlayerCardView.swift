@@ -22,6 +22,8 @@ struct PlayerCardView: View {
                 VStack(alignment: .trailing, spacing: 1) {
                     if player.isInjured {
                         Image(systemName: "cross.circle.fill").foregroundStyle(Theme.negative)
+                    } else if player.isSuspended {
+                        Image(systemName: "rectangle.portrait.fill").foregroundStyle(Theme.negative)
                     } else if player.isTransferListed {
                         Image(systemName: "tag.fill").foregroundStyle(Theme.warning)
                     }
@@ -64,7 +66,7 @@ struct PlayerCardView: View {
                 .stroke(isSelected ? Theme.gold : tier.opacity(0.8), lineWidth: isSelected ? 2.5 : 1)
         )
         .scaleEffect(isSelected ? 1.05 : 1)
-        .opacity(player.isInjured ? 0.65 : 1)
+        .opacity(player.isAvailable ? 1 : 0.65)
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
     }
 }

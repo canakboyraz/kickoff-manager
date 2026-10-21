@@ -51,18 +51,28 @@ struct RootView: View {
 }
 
 struct MainTabView: View {
+    @Environment(GameStore.self) private var store
+
     var body: some View {
-        TabView {
+        let needsChanges = store.career?.needsLineupChanges ?? false
+        TabView(selection: Binding(get: { store.selectedTab }, set: { store.selectedTab = $0 })) {
             NavigationStack { HomeView() }
                 .tabItem { Label(L("tab.home"), systemImage: "house.fill") }
+                .tag(AppTab.home)
             NavigationStack { SquadView() }
                 .tabItem { Label(L("tab.squad"), systemImage: "tshirt.fill") }
+                .badge(needsChanges ? Text("!") : nil)
+                .tag(AppTab.squad)
             NavigationStack { TransfersView() }
                 .tabItem { Label(L("tab.transfers"), systemImage: "arrow.left.arrow.right") }
+                .badge(store.career?.pendingOffers.count ?? 0)
+                .tag(AppTab.transfers)
             NavigationStack { ClubView() }
                 .tabItem { Label(L("tab.club"), systemImage: "building.columns.fill") }
+                .tag(AppTab.club)
             NavigationStack { LeagueView() }
                 .tabItem { Label(L("tab.league"), systemImage: "list.number") }
+                .tag(AppTab.league)
         }
     }
 }

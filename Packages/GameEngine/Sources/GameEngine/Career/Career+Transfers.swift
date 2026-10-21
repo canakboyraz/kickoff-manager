@@ -342,13 +342,10 @@ extension Career {
         }
     }
 
-    /// While the window is open, AI clubs bid for the user's players: now and then for anyone,
-    /// and often for players on the transfer list.
+    /// While the window is open, AI clubs bid for the user's players: most weeks for someone
+    /// in the squad, and often for players on the transfer list.
     mutating func generateIncomingOffers() {
-        guard isTransferWindowOpen else { return }
-        let pending = Set(offers.filter { $0.status == .pending }.map(\.playerID))
-        let candidates = userSquad.filter { !$0.isInjured && !pending.contains($0.id) }
-        guard candidates.count > 14 else { return }
+        guard isTransferWindowOpen, !isUnemployed else { return }
 
         // Clubs sometimes improve a bid on their own.
         for index in offers.indices where offers[index].status == .pending && offers[index].fee < offers[index].maxFee {
@@ -359,33 +356,53 @@ extension Career {
             post(.offerImproved(offerID: offers[index].id))
         }
 
+        let pending = Set(offers.filter { $0.status == .pending }.map(\.playerID))
+        let candidates = userSquad.filter { !$0.isInjured && !pending.contains($0.id) }
+        guard candidates.count > 14 else { return }
+
+        // Unsolicited interest: try several players, since not every club can afford the stars.
         let unlisted = candidates.filter { !$0.isTransferListed }
-        if rng.chance(0.6), !unlisted.isEmpty {
-            let weights = unlisted.map { pow(1.12, Double($0.overall - 50)) * (1 + Double(max(0, $0.potential - $0.overall)) / 20) }
-            if let index = rng.weightedIndex(weights) {
-                makeOffer(for: unlisted[index], factor: rng.double(0.9...1.3), listed: false)
-            }
+        let attempts = rng.chance(0.85) ? (rng.chance(0.4) ? 2 : 1) : 0
+        var made = 0
+        var tried = Set<UUID>()
+        for _ in 0..<8 where made < attempts {
+            let pool = unlisted.filter { !tried.contains($0.id) }
+            let weights = pool.map { 1 + Double(max(0, $0.overall - 55)) / 5 + Double(max(0, $0.potential - $0.overall)) / 10 }
+            guard let index = rng.weightedIndex(weights) else { break }
+            tried.insert(pool[index].id)
+            if makeOffer(for: pool[index], factor: rng.double(0.9...1.3), listed: false) { made += 1 }
         }
-        for player in candidates where player.isTransferListed && rng.chance(0.4) {
-            makeOffer(for: player, factor: rng.double(0.7...1.05), listed: true)
+        for player in candidates where player.isTransferListed && rng.chance(0.6) {
+            makeOffer(for: player, factor: rng.double(0.75...1.05), listed: true)
         }
     }
 
-    mutating func makeOffer(for player: Player, factor: Double, listed: Bool) {
+    /// Spending power of an AI club: its transfer budget, or a third of its cash if that's more.
+    func biddingPower(of club: Club) -> Int {
+        max(club.finances.transferBudget, club.finances.balance / 3)
+    }
+
+    /// Creates a bid from a club that wants (and can afford) the player. Returns false when nobody fits.
+    @discardableResult
+    mutating func makeOffer(for player: Player, factor: Double, listed: Bool) -> Bool {
         let value = Double(player.marketValue(season: season))
-        let fee = max(50_000, Career.roundTo(value * factor, step: 50_000))
-        let reach = listed ? 12.0 : 6.0
+        let wanted = max(50_000, Career.roundTo(value * factor, step: 50_000))
+        let reach = listed ? 14.0 : 8.0
+        let alreadyBidding = Set(offers.filter { $0.playerID == player.id && $0.status == .pending }.map(\.fromClubID))
         let buyers = clubs.values.filter { club in
             let level = Career.averageOverall(reputation: club.reputation)
             return club.id != userClubID
+                && !alreadyBidding.contains(club.id)
                 && level + reach >= Double(player.overall)
-                && level - 14 <= Double(player.overall)
-                && club.finances.transferBudget >= fee
+                && level - 16 <= Double(player.overall)
+                && Double(biddingPower(of: club)) >= Double(wanted) * 0.8
         }
-        guard !buyers.isEmpty else { return }
+        guard !buyers.isEmpty else { return false }
         let buyer = rng.pick(buyers.sorted { $0.name < $1.name })
+        let power = biddingPower(of: buyer)
+        let fee = max(50_000, Career.roundTo(Double(min(wanted, power)), step: 50_000))
         let ceiling = Career.roundTo(Double(fee) * rng.double(1.15...1.5), step: 50_000)
-        let maxFee = max(fee, min(buyer.finances.transferBudget, ceiling))
+        let maxFee = max(fee, min(power, ceiling))
 
         let offer = IncomingOffer(
             id: UUID(),
@@ -399,5 +416,19 @@ extension Career {
         )
         offers.append(offer)
         post(.transferOffer(offerID: offer.id))
+        return true
+    }
+
+    /// The user actively offers a player around. Interested clubs bid straight away.
+    /// Returns how many bids came in (0 when nobody is interested or the window is shut).
+    public mutating func offerToClubs(_ playerID: UUID) -> Int {
+        guard isTransferWindowOpen, let player = players[playerID], player.clubID == userClubID else { return 0 }
+        players[playerID]?.isTransferListed = true
+        let count = rng.int(1...3)
+        var made = 0
+        for _ in 0..<count {
+            if makeOffer(for: player, factor: rng.double(0.7...1.0), listed: true) { made += 1 }
+        }
+        return made
     }
 }

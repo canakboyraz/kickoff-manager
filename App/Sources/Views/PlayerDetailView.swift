@@ -64,6 +64,9 @@ struct PlayerDetailView: View {
                     if player.isInjured {
                         Chip(text: L("player.injured", String(player.injuryWeeks)), icon: "cross.case.fill", color: Theme.negative)
                     }
+                    if player.isSuspended {
+                        Chip(text: L("player.suspended", String(player.suspendedMatches)), icon: "rectangle.portrait.fill", color: Theme.negative)
+                    }
                 }
             }
             Spacer(minLength: 0)
@@ -90,6 +93,15 @@ struct PlayerDetailView: View {
                           systemImage: player.isTransferListed ? "tag.slash.fill" : "tag.fill")
                 }
                 .buttonStyle(OutlineButtonStyle(color: Theme.warning))
+            }
+            if career.isTransferWindowOpen {
+                Button {
+                    let bids = store.update { $0.offerToClubs(player.id) } ?? 0
+                    notice = bids > 0 ? L("player.offered.bids", String(bids)) : L("player.offered.none")
+                } label: {
+                    Label(L("player.offerToClubs"), systemImage: "megaphone.fill")
+                }
+                .buttonStyle(OutlineButtonStyle(color: Theme.goldLight))
             }
             if player.isTransferListed {
                 Text(L("player.listedHint"))
@@ -157,6 +169,7 @@ struct PlayerDetailView: View {
             if let form = player.form {
                 detailRow(L("player.form"), Fmt.rating(form))
             }
+            detailRow(L("player.yellowCards"), "\(player.yellowCards)")
         }
         .gameCard()
     }

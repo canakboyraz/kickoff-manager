@@ -58,6 +58,8 @@ enum PlayerGenerator {
             clubID: clubID,
             contract: Contract(weeklyWage: 0, expiresSeason: season + rng.int(1...4)),
             injuryWeeks: 0,
+            suspendedMatches: 0,
+            yellowCards: 0,
             isTransferListed: false,
             stats: SeasonStats(),
             careerGoals: 0,

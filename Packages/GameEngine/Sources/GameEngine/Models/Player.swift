@@ -37,6 +37,10 @@ public struct Player: Codable, Identifiable, Hashable, Sendable {
     public var clubID: UUID?
     public var contract: Contract
     public var injuryWeeks: Int
+    /// Matches still to serve for a red card or too many bookings.
+    public var suspendedMatches: Int
+    /// Yellow cards this season; every fifth one means a one-match ban.
+    public var yellowCards: Int
     /// Put up for sale by the user; AI clubs bid for listed players more often.
     public var isTransferListed: Bool
     public var stats: SeasonStats
@@ -55,6 +59,11 @@ public struct Player: Codable, Identifiable, Hashable, Sendable {
     public var overall: Int { attributes.overall(for: position) }
 
     public var isInjured: Bool { injuryWeeks > 0 }
+
+    public var isSuspended: Bool { suspendedMatches > 0 }
+
+    /// Can be picked for the next match.
+    public var isAvailable: Bool { !isInjured && !isSuspended }
 
     public func age(in season: Int) -> Int { season - birthYear }
 
@@ -112,5 +121,36 @@ public struct Player: Codable, Identifiable, Hashable, Sendable {
         appearancesSinceTick += 1
         recentRatings.append(rating)
         if recentRatings.count > 5 { recentRatings.removeFirst(recentRatings.count - 5) }
+    }
+}
+
+// MARK: - Loading older saves
+
+extension Player {
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        firstName = try c.decode(String.self, forKey: .firstName)
+        lastName = try c.decode(String.self, forKey: .lastName)
+        nationality = try c.decode(String.self, forKey: .nationality)
+        birthYear = try c.decode(Int.self, forKey: .birthYear)
+        position = try c.decode(Position.self, forKey: .position)
+        attributes = try c.decode(Attributes.self, forKey: .attributes)
+        potential = try c.decode(Int.self, forKey: .potential)
+        morale = try c.decode(Int.self, forKey: .morale)
+        fitness = try c.decode(Int.self, forKey: .fitness)
+        recentRatings = try c.decode([Double].self, forKey: .recentRatings)
+        clubID = try c.decodeIfPresent(UUID.self, forKey: .clubID)
+        contract = try c.decode(Contract.self, forKey: .contract)
+        injuryWeeks = try c.decode(Int.self, forKey: .injuryWeeks)
+        // Added in 0.4.
+        suspendedMatches = try c.decodeIfPresent(Int.self, forKey: .suspendedMatches) ?? 0
+        yellowCards = try c.decodeIfPresent(Int.self, forKey: .yellowCards) ?? 0
+        isTransferListed = try c.decode(Bool.self, forKey: .isTransferListed)
+        stats = try c.decode(SeasonStats.self, forKey: .stats)
+        careerGoals = try c.decode(Int.self, forKey: .careerGoals)
+        careerAppearances = try c.decode(Int.self, forKey: .careerAppearances)
+        developmentProgress = try c.decode(Double.self, forKey: .developmentProgress)
+        appearancesSinceTick = try c.decode(Int.self, forKey: .appearancesSinceTick)
     }
 }

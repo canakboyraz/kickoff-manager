@@ -93,6 +93,7 @@ extension Career {
             summary = closing.summary
             startNewSeason(qualifiers: closing.qualifiers)
             considerJobOffers(seasonEnd: true)
+            generateIncomingOffers()
         }
         normalizeUserTactics()
 
@@ -152,7 +153,38 @@ extension Career {
                 post(.injury(playerID: injury.playerID, weeks: injury.weeks))
             }
         }
+
+        // Banned players who sat this game out have served one match.
+        for clubID in [homeID, awayID] {
+            for playerID in clubs[clubID]?.playerIDs ?? [] where (players[playerID]?.suspendedMatches ?? 0) > 0 && !played.contains(playerID) {
+                players[playerID]?.suspendedMatches -= 1
+            }
+        }
+        applyBookings(outcome.bookings)
         return Set(outcome.injuries.map(\.playerID))
+    }
+
+    /// Red card: 1 match for two yellows, 1–3 for a straight red. Every fifth yellow: 1 match.
+    mutating func applyBookings(_ bookings: [MatchEngine.Booking]) {
+        for booking in bookings {
+            guard var player = players[booking.playerID] else { continue }
+            var ban = 0
+            var reason = SuspensionReason.yellowCards
+            if booking.isRed {
+                ban = booking.isSecondYellow ? 1 : rng.int(1...3)
+                reason = booking.isSecondYellow ? .secondYellow : .redCard
+            } else {
+                player.yellowCards += 1
+                if player.yellowCards % 5 == 0 { ban = 1 }
+            }
+            if ban > 0 {
+                player.suspendedMatches += ban
+                if player.clubID == userClubID {
+                    post(.suspension(playerID: player.id, matches: ban, reason: reason))
+                }
+            }
+            players[booking.playerID] = player
+        }
     }
 
     mutating func applyMorale(clubID: UUID, scored: Int, conceded: Int, played: Set<UUID>) {
@@ -417,6 +449,7 @@ extension Career {
         }
         for id in Array(players.keys) {
             players[id]?.stats = SeasonStats()
+            players[id]?.yellowCards = 0
             // Pre-season gets everyone fit again.
             players[id]?.fitness = 100
         }

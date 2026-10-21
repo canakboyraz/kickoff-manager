@@ -62,7 +62,12 @@ final class GameEngineTests: XCTestCase {
             if outcome.result.homeGoals < outcome.result.awayGoals { weakWins += 1 }
             substitutions += outcome.result.events.filter { $0.kind == .substitution }.count
             let minutes = outcome.result.ratings.filter { $0.clubID == strongest }.map(\.minutes).reduce(0, +)
-            XCTAssertEqual(minutes, 11 * 90, "minutes on the pitch add up to eleven full players")
+            let sentOff = outcome.result.events.contains { $0.kind == .redCard && $0.clubID == strongest }
+            if sentOff {
+                XCTAssertLessThan(minutes, 11 * 90, "a red card leaves the team with ten men")
+            } else {
+                XCTAssertEqual(minutes, 11 * 90, "minutes on the pitch add up to eleven full players")
+            }
         }
         XCTAssertGreaterThan(strongWins, weakWins * 3)
         XCTAssertGreaterThan(substitutions, 200 * 2 * 2 - 1)
@@ -368,5 +373,81 @@ final class GameEngineTests: XCTestCase {
             if agreed { break }
         }
         XCTAssertLessThan(previous, asking)
+    }
+
+    // MARK: - v0.4
+
+    func testEveryFormationHasElevenSlots() {
+        XCTAssertEqual(Formation.allCases.count, 10)
+        for formation in Formation.allCases {
+            XCTAssertEqual(formation.slots.count, 11, formation.rawValue)
+            XCTAssertEqual(formation.slots.filter { $0 == .goalkeeper }.count, 1, formation.rawValue)
+        }
+    }
+
+    func testCardsAndSuspensions() {
+        var career = Career.generate(seed: 51)
+        career.chooseClub(career.leagues[0].clubIDs[2])
+        for _ in 0..<12 {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        let events = career.leagues.flatMap(\.fixtures).compactMap(\.result).flatMap(\.events)
+        let yellows = events.filter { $0.kind == .yellowCard }.count
+        let reds = events.filter { $0.kind == .redCard }.count
+        let games = career.leagues.flatMap(\.fixtures).filter { $0.result != nil }.count
+        // Roughly 2–5 yellows per game and a red now and then.
+        XCTAssertGreaterThan(Double(yellows) / Double(games), 1.5)
+        XCTAssertLessThan(Double(yellows) / Double(games), 6)
+        XCTAssertGreaterThan(reds, 0)
+        XCTAssertTrue(career.players.values.contains { $0.yellowCards > 0 })
+
+        // A suspended starter must be dealt with before the next match.
+        let starter = career.userStarters[4]!
+        career.players[starter.id]?.suspendedMatches = 2
+        XCTAssertTrue(career.needsLineupChanges)
+        XCTAssertFalse(career.teamSheet(for: career.userClubID).starters.contains { $0.player.id == starter.id })
+        career.autoPickLineup()
+        XCTAssertFalse(career.needsLineupChanges)
+    }
+
+    func testSuspensionIsServed() {
+        var career = Career.generate(seed: 52)
+        career.chooseClub(career.leagues[0].clubIDs[2])
+        let player = career.userReserves.first!
+        career.players[player.id]?.suspendedMatches = 1
+        career.manager.boardConfidence = 100
+        career.advanceWeek()
+        XCTAssertEqual(career.player(player.id)?.suspendedMatches, 0)
+    }
+
+    func testOffersArriveDuringTheWindow() {
+        var career = Career.generate(seed: 53)
+        career.chooseClub(career.leagues[0].clubIDs[3])
+        for _ in 0..<3 {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        XCTAssertFalse(career.offers.isEmpty, "clubs should bid during the summer window")
+
+        // Offering a squad player to clubs brings bids straight away.
+        let pending = Set(career.pendingOffers.map(\.playerID))
+        let player = career.userSquad.filter { !pending.contains($0.id) }.sorted { $0.overall < $1.overall }[8]
+        let bids = career.offerToClubs(player.id)
+        XCTAssertGreaterThan(bids, 0)
+        XCTAssertEqual(career.pendingOffers.filter { $0.playerID == player.id }.count, bids)
+        XCTAssertEqual(career.player(player.id)?.isTransferListed, true)
+    }
+
+    func testOldPlayerRecordsLoad() throws {
+        let career = Career.generate(seed: 54)
+        let player = career.players.values.first!
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(player)) as! [String: Any]
+        json.removeValue(forKey: "suspendedMatches")
+        json.removeValue(forKey: "yellowCards")
+        let loaded = try JSONDecoder().decode(Player.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(loaded.id, player.id)
+        XCTAssertEqual(loaded.suspendedMatches, 0)
+        XCTAssertEqual(loaded.yellowCards, 0)
     }
 }

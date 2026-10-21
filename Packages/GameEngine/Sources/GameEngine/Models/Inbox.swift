@@ -30,6 +30,11 @@ public enum InboxKind: Codable, Hashable, Sendable {
     case newJob(clubID: UUID)
     /// End-of-season verdict: where the board expected the club to finish and where it did.
     case seasonReview(expected: Int, position: Int, confidence: Int)
+    case suspension(playerID: UUID, matches: Int, reason: SuspensionReason)
+}
+
+public enum SuspensionReason: String, Codable, Hashable, Sendable {
+    case redCard, secondYellow, yellowCards
 }
 
 public struct InboxMessage: Codable, Hashable, Identifiable, Sendable {

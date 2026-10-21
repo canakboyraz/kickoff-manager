@@ -6,6 +6,11 @@ public enum Formation: String, Codable, CaseIterable, Hashable, Sendable {
     case f4231 = "4-2-3-1"
     case f352 = "3-5-2"
     case f532 = "5-3-2"
+    case f4141 = "4-1-4-1"
+    case f4312 = "4-3-1-2"
+    case f4321 = "4-3-2-1"
+    case f343 = "3-4-3"
+    case f451 = "4-5-1"
 
     /// Rows from the goalkeeper forward, each row listed left to right.
     public var rows: [[Position]] {
@@ -25,6 +30,21 @@ public enum Formation: String, Codable, CaseIterable, Hashable, Sendable {
         case .f532:
             return [[.goalkeeper], [.fullBack, .centreBack, .centreBack, .centreBack, .fullBack],
                     [.centralMid, .defensiveMid, .centralMid], [.striker, .striker]]
+        case .f4141:
+            return [[.goalkeeper], [.fullBack, .centreBack, .centreBack, .fullBack],
+                    [.defensiveMid], [.winger, .centralMid, .centralMid, .winger], [.striker]]
+        case .f4312:
+            return [[.goalkeeper], [.fullBack, .centreBack, .centreBack, .fullBack],
+                    [.centralMid, .defensiveMid, .centralMid], [.attackingMid], [.striker, .striker]]
+        case .f4321:
+            return [[.goalkeeper], [.fullBack, .centreBack, .centreBack, .fullBack],
+                    [.centralMid, .defensiveMid, .centralMid], [.attackingMid, .attackingMid], [.striker]]
+        case .f343:
+            return [[.goalkeeper], [.centreBack, .centreBack, .centreBack],
+                    [.fullBack, .centralMid, .centralMid, .fullBack], [.winger, .striker, .winger]]
+        case .f451:
+            return [[.goalkeeper], [.fullBack, .centreBack, .centreBack, .fullBack],
+                    [.winger, .centralMid, .defensiveMid, .centralMid, .winger], [.striker]]
         }
     }
 
@@ -39,6 +59,11 @@ public enum Formation: String, Codable, CaseIterable, Hashable, Sendable {
         case .f4231: return -0.5
         case .f352: return 1.5
         case .f532: return -1.5
+        case .f4141: return -0.5
+        case .f4312: return 0.5
+        case .f4321: return 0.5
+        case .f343: return 2
+        case .f451: return -1
         }
     }
 

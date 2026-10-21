@@ -114,6 +114,7 @@ extension Career {
         if let cup = cups.first(where: { $0.clubIDs.contains(clubID) }) {
             post(.cupQualified(kind: cup.kind, season: season))
         }
+        generateIncomingOffers()
     }
 
     static func pickFormation(_ rng: inout SeededRandom) -> Formation {
