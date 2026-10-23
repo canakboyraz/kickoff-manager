@@ -253,12 +253,16 @@
 "new.subtitle" = "Bir kulüp seç ve yönetimi devral. Transferler, altyapı, stadyum: hepsi sende.";
 "penalty.aimDirection" = "Yönü seçmek için dokun";
 "penalty.aimHeight" = "Yüksekliği seçmek için dokun";
+"penalty.aimPower" = "Vurmak için dokun: yeşil bölgeyi hedefle";
 "penalty.goal" = "GOL!";
-"penalty.hint" = "Üst köşeler kurtarılamaz ama fazla zorlarsan dışarı gider. Günde bir atış.";
+"penalty.hint" = "Kaleci atışların yarısını okur. Köşelere nişan al, gücü yeşil bölgede tut. Fazla sert vurursan üstten gider, yumuşak vurursan kurtarır.";
 "penalty.over" = "Üstten dışarı!";
 "penalty.post" = "Direkten döndü!";
 "penalty.reward" = "+%@ transfer bütçesi";
 "penalty.saved" = "Kaleci kurtardı!";
+"penalty.step.direction" = "Yön";
+"penalty.step.height" = "Yükseklik";
+"penalty.step.power" = "Güç";
 "penalty.tapToClose" = "Devam etmek için dokun";
 "penalty.tomorrow" = "Yarın tekrar dene.";
 "penalty.wide" = "Auta gitti!";

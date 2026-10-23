@@ -253,12 +253,16 @@
 "new.subtitle" = "Pick a club and take charge. Transfers, youth, stadium: it's all on you.";
 "penalty.aimDirection" = "Tap to pick the direction";
 "penalty.aimHeight" = "Tap to pick the height";
+"penalty.aimPower" = "Tap to strike: aim for the green zone";
 "penalty.goal" = "GOAL!";
-"penalty.hint" = "Top corners can't be saved, but aim too far and it misses. One shot a day.";
+"penalty.hint" = "The keeper reads half the shots. Aim for the corners, strike it in the green zone. Too hard and it flies over, too soft and he saves it.";
 "penalty.over" = "Over the bar!";
 "penalty.post" = "Off the woodwork!";
 "penalty.reward" = "+%@ transfer budget";
 "penalty.saved" = "Saved!";
+"penalty.step.direction" = "Direction";
+"penalty.step.height" = "Height";
+"penalty.step.power" = "Power";
 "penalty.tapToClose" = "Tap to continue";
 "penalty.tomorrow" = "Try again tomorrow.";
 "penalty.wide" = "Wide!";

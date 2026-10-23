@@ -91,8 +91,8 @@ extension Career {
 // MARK: - Budgets
 
 extension Career {
-    /// €1 of weekly wage budget is worth this much transfer budget (roughly a season of wages).
-    public static let budgetConversionRate = 40
+    /// €1 of weekly wage budget is worth this much transfer budget.
+    public static let budgetConversionRate = 200
 
     /// Transfer budget that `weekly` euros of wage budget convert to (and back).
     public static func transferEquivalent(ofWeekly weekly: Int) -> Int { weekly * budgetConversionRate }

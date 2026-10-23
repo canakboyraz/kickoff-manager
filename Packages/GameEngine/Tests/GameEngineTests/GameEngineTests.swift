@@ -529,11 +529,11 @@ final class GameEngineTests: XCTestCase {
         var career = Career.generate(seed: 64)
         career.chooseClub(career.leagues[0].clubIDs[1])
         let before = career.userClub.finances
-        let result = career.moveBudget(weekly: 10_000)
-        XCTAssertEqual(result, .moved(transferBudget: before.transferBudget - 10_000 * Career.budgetConversionRate,
-                                      wageBudget: before.wageBudget + 10_000))
+        let result = career.moveBudget(weekly: 5_000)
+        XCTAssertEqual(result, .moved(transferBudget: before.transferBudget - 5_000 * Career.budgetConversionRate,
+                                      wageBudget: before.wageBudget + 5_000))
         // Moving it back restores the original budgets.
-        career.moveBudget(weekly: -10_000)
+        career.moveBudget(weekly: -5_000)
         XCTAssertEqual(career.userClub.finances.transferBudget, before.transferBudget)
         XCTAssertEqual(career.userClub.finances.wageBudget, before.wageBudget)
         // The wage budget can't drop below the wage bill.

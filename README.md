@@ -21,9 +21,9 @@ SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 - **Serbest oyuncular**: sözleşmesi biten ya da serbest bırakılan oyuncular havuza düşer. Bonservis ödenmez, transfer dönemi dışında da imzalanabilir; karşılığında yaklaşık %40 daha yüksek maaş isterler. Yapay zekâ kulüpleri de bu havuzdan oyuncu alır.
 - **Sözleşme takibi**: sözleşmesi bu sezon biten oyuncular için Sözleşmeler ekranı, ana sayfa ve kadro uyarısı, kartta simge, sezon içinde 4 kez hatırlatma mesajı.
 - **Gol ve asist krallığı**: Lig › İstatistik sekmesinde her lig için ilk 20.
-- **Bütçe aktarma**: transfer bütçesi ile haftalık maaş bütçesi arasında aktarma (haftalık €1 maaş = €40 transfer bütçesi).
+- **Bütçe aktarma**: transfer bütçesi ile haftalık maaş bütçesi arasında aktarma (haftalık €1 maaş = €200 transfer bütçesi).
 - **Scout**: mevki, lig, yaş, potansiyel ve değer kriterleriyle scout gönderme (aynı anda 2). 2–3 hafta sonra en fazla 5 oyunculuk rapor gelir; bulunan oyuncular o sezon %12–25 daha ucuz bonservis ve %5–12 daha düşük maaşla alınır.
-- **Bedava transfer parası**: saatte bir ödüllü reklam (+€2M) ve günde bir penaltı atışı (gol olursa +€5M).
+- **Bedava transfer parası**: saatte bir ödüllü reklam (+€2M) ve günde bir penaltı atışı (yön, yükseklik ve güç; gol olursa +€5M).
 - **Reklam ve satın alma**: her 5 oynanan haftada bir geçiş reklamı (AdMob). "Reklamları kaldır" tek seferlik satın alımı (StoreKit 2) ve geri yükleme.
 - **Türkçe + İngilizce** arayüz, otomatik kayıt.
 
