@@ -89,6 +89,7 @@ extension Career {
         let bestThree = squad(of: clubID).sorted { $0.overall > $1.overall }.prefix(3).map(\.id)
         if bestThree.contains(playerID) { price *= 1.15 }
         if player.contract.expiresSeason <= season { price *= 0.7 }
+        if let report = scoutReport(for: playerID) { price *= 1 - report.feeDiscount }
         return max(50_000, Career.roundTo(price, step: 50_000))
     }
 
@@ -102,6 +103,7 @@ extension Career {
             // No fee to pay, so free agents want a bigger share of the money as wages.
             demand = Double(player.expectedWage(season: season)) * Career.freeAgentWagePremium
         }
+        if let report = scoutReport(for: playerID) { demand *= 1 - report.wageDiscount }
         return Career.roundUp(demand, step: 500)
     }
 
@@ -263,6 +265,7 @@ extension Career {
         players[playerID]?.morale = 75
         players[playerID]?.recentRatings = []
         players[playerID]?.isTransferListed = false
+        if buyerID == userClubID { scoutReports.removeAll { $0.playerID == playerID } }
     }
 
     // MARK: - Contracts

@@ -72,6 +72,7 @@ extension Career {
         tickUpgrades()
         if matchday % 4 == 0 { developmentTick() }
         remindAboutExpiringContracts(matchday: matchday)
+        tickScouts()
         aiFreeAgentSignings()
         // Talks start over when the winter window opens.
         if matchday == matchdayCount / 2 { talks.removeAll() }
@@ -471,6 +472,7 @@ extension Career {
         }
         offers.removeAll { $0.status != .pending }
         talks.removeAll()
+        expireScoutReports()
         setUpCups(qualifiers: qualifiers)
         if !isUnemployed {
             post(.transferWindowOpened(winter: false, weeks: Career.summerWindowWeeks))

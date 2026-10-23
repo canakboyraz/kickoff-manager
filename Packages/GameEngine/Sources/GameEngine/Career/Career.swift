@@ -3,7 +3,7 @@ import Foundation
 /// The whole save game. Value type: the app keeps one copy, mutates it and writes it to disk as JSON.
 public struct Career: Codable, Sendable {
     /// Bumped whenever the save format changes.
-    public static let currentVersion = 4
+    public static let currentVersion = 5
     /// Oldest save format that can still be loaded (missing fields get defaults).
     public static let minimumLoadableVersion = 2
 
@@ -28,6 +28,9 @@ public struct Career: Codable, Sendable {
     public internal(set) var jobOffers: [JobOffer]
     /// Sacked and waiting to accept a new job.
     public internal(set) var isUnemployed: Bool
+    /// Scouts currently searching, and the players they found.
+    public internal(set) var scoutMissions: [ScoutMission] = []
+    public internal(set) var scoutReports: [ScoutReport] = []
     var rng: SeededRandom
 }
 
@@ -61,6 +64,9 @@ extension Career {
         }
         jobOffers = try container.decodeIfPresent([JobOffer].self, forKey: .jobOffers) ?? []
         isUnemployed = try container.decodeIfPresent(Bool.self, forKey: .isUnemployed) ?? false
+        // Added in version 5.
+        scoutMissions = try container.decodeIfPresent([ScoutMission].self, forKey: .scoutMissions) ?? []
+        scoutReports = try container.decodeIfPresent([ScoutReport].self, forKey: .scoutReports) ?? []
         // Version 4 added free agents: give older saves a starting pool.
         let savedVersion = try container.decodeIfPresent(Int.self, forKey: .version) ?? 2
         if savedVersion < 4 && freeAgentCount < 40 {

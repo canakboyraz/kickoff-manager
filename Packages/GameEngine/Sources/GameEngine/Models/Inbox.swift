@@ -33,7 +33,14 @@ public enum InboxKind: Codable, Hashable, Sendable {
     case suspension(playerID: UUID, matches: Int, reason: SuspensionReason)
     /// Players whose contracts run out at the end of this season. `final` = last few weeks.
     case contractsReminder(playerIDs: [UUID], final: Bool)
+    /// A scout came back with these players (empty when he found nobody).
+    case scoutReport(playerIDs: [UUID])
+    /// Bonus money from a rewarded ad or the penalty challenge.
+    case bonus(amount: Int, source: BonusSource)
 }
+
+public enum BonusSource: String, Codable, Hashable, Sendable {
+    case rewardedAd, penalty
 
 public enum SuspensionReason: String, Codable, Hashable, Sendable {
     case redCard, secondYellow, yellowCards

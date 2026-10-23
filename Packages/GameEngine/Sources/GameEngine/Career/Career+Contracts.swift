@@ -125,3 +125,16 @@ extension Career {
         return .moved(transferBudget: userClub.finances.transferBudget, wageBudget: userClub.finances.wageBudget)
     }
 }
+
+// MARK: - Bonuses
+
+extension Career {
+    /// Extra transfer money from the daily penalty challenge or a rewarded ad.
+    public mutating func receiveBonus(_ amount: Int, source: BonusSource) {
+        guard amount > 0, !isUnemployed else { return }
+        clubs[userClubID]?.finances.balance += amount
+        clubs[userClubID]?.finances.transferBudget += amount
+        clubs[userClubID]?.finances.seasonIncome += amount
+        post(.bonus(amount: amount, source: source))
+    }
+}

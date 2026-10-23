@@ -18,7 +18,7 @@ struct ClubSeed: Codable, Hashable, Sendable {
 }
 
 enum WorldData {
-    static let countries: [CountryInfo] = [turkey, england, spain, germany, italy]
+    static let countries: [CountryInfo] = [turkey, england, spain, germany, italy, france, portugal, netherlands]
 
     // MARK: - Türkiye
 
@@ -133,5 +133,74 @@ enum WorldData {
         ClubSeed(name: "AS Campodoro", shortName: "CDO", stadium: "Campo d'Oro", primary: "FDB913", secondary: "1A1A1A"),
         ClubSeed(name: "US Torrealta", shortName: "TAL", stadium: "Torre Alta", primary: "1D3C8F", secondary: "F2C230"),
         ClubSeed(name: "AC Serenella", shortName: "SER", stadium: "Stadio Sereno", primary: "00897B", secondary: "FFFFFF")
+    ])
+
+    // MARK: - France
+
+    static let france = CountryInfo(code: "FR", leagueName: "Ligue Tricolore", strength: 0.93, clubs: [
+        ClubSeed(name: "Lumière Saint-Clair", shortName: "LSC", stadium: "Parc Saint-Clair", primary: "0B2A5B", secondary: "D7262E"),
+        ClubSeed(name: "Olympique Phocée", shortName: "OPH", stadium: "Vélodrome du Vieux-Port", primary: "2FAEE0", secondary: "FFFFFF"),
+        ClubSeed(name: "Olympique Confluence", shortName: "OCF", stadium: "Stade des Deux Fleuves", primary: "1B3A8C", secondary: "E30613"),
+        ClubSeed(name: "AS Rocheval", shortName: "ROC", stadium: "Stade du Rocher", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "Dogues de Flandre", shortName: "DGF", stadium: "Stade des Beffrois", primary: "C8102E", secondary: "1D2C5E"),
+        ClubSeed(name: "Stade Armoricain", shortName: "ARM", stadium: "Parc de la Vilaine", primary: "E30613", secondary: "111111"),
+        ClubSeed(name: "Gym Azuréen", shortName: "AZU", stadium: "Stade de la Baie", primary: "B71C1C", secondary: "111111"),
+        ClubSeed(name: "Sang et Or d'Artois", shortName: "SOA", stadium: "Stade des Mineurs", primary: "FDB913", secondary: "E30613"),
+        ClubSeed(name: "Canaris de Loire", shortName: "CDL", stadium: "Stade des Canaris", primary: "FFE100", secondary: "1F7A3A"),
+        ClubSeed(name: "Racing Rhénan", shortName: "RRH", stadium: "Stade du Rhin", primary: "0055A4", secondary: "FFFFFF"),
+        ClubSeed(name: "Girondins d'Aquitaine", shortName: "GAQ", stadium: "Stade de Garonne", primary: "1B2A49", secondary: "FFFFFF"),
+        ClubSeed(name: "Pailladins d'Occitanie", shortName: "POC", stadium: "Stade de l'Hérault", primary: "F47920", secondary: "1B3A8C"),
+        ClubSeed(name: "Violets du Capitole", shortName: "VDC", stadium: "Stadium des Violettes", primary: "5B2C83", secondary: "FFFFFF"),
+        ClubSeed(name: "Stade Champenois", shortName: "SCH", stadium: "Stade des Sacres", primary: "C8102E", secondary: "FFFFFF"),
+        ClubSeed(name: "Verts du Forez", shortName: "VDF", stadium: "Chaudron Vert", primary: "00A651", secondary: "FFFFFF"),
+        ClubSeed(name: "Pirates du Finistère", shortName: "PDF", stadium: "Stade de la Pointe", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "Merlus du Morbihan", shortName: "MDM", stadium: "Stade des Merlus", primary: "F47920", secondary: "111111"),
+        ClubSeed(name: "AJ Bourguignonne", shortName: "AJB", stadium: "Stade de l'Abbaye", primary: "1B3A8C", secondary: "FFFFFF")
+    ])
+
+    // MARK: - Portugal
+
+    static let portugal = CountryInfo(code: "PT", leagueName: "Liga Lusitana", strength: 0.86, clubs: [
+        ClubSeed(name: "SL Águias do Tejo", shortName: "AGT", stadium: "Estádio do Farol", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "FC Dragões do Douro", shortName: "DRD", stadium: "Estádio do Douro", primary: "0055A4", secondary: "FFFFFF"),
+        ClubSeed(name: "Leões da Capital", shortName: "LDC", stadium: "Estádio Verde Real", primary: "00843D", secondary: "FFFFFF"),
+        ClubSeed(name: "Arsenal do Minho", shortName: "ADM", stadium: "Estádio da Pedreira", primary: "C8102E", secondary: "FFFFFF"),
+        ClubSeed(name: "Vitória Conquistadora", shortName: "VCO", stadium: "Estádio do Castelo", primary: "FFFFFF", secondary: "111111"),
+        ClubSeed(name: "Restelo Atlético", shortName: "RAT", stadium: "Estádio do Restelo", primary: "1B3A8C", secondary: "FFFFFF"),
+        ClubSeed(name: "Axadrezados do Bessa", shortName: "AXB", stadium: "Estádio Xadrez", primary: "111111", secondary: "FFFFFF"),
+        ClubSeed(name: "Marítimo Insular", shortName: "MIN", stadium: "Estádio dos Barreiros", primary: "00843D", secondary: "E30613"),
+        ClubSeed(name: "Rio Vale FC", shortName: "RVF", stadium: "Estádio dos Arcos", primary: "00843D", secondary: "FFFFFF"),
+        ClubSeed(name: "Famalicense SC", shortName: "FAM", stadium: "Estádio Minhoto", primary: "1B3A8C", secondary: "FFFFFF"),
+        ClubSeed(name: "Galo de Barcelos", shortName: "GDB", stadium: "Estádio do Galo", primary: "E30613", secondary: "1B3A8C"),
+        ClubSeed(name: "Costa do Sol FC", shortName: "CDS", stadium: "Estádio da Costa", primary: "FDB913", secondary: "1B3A8C"),
+        ClubSeed(name: "Casa Lisboeta", shortName: "CLI", stadium: "Estádio Pina", primary: "111111", secondary: "FFFFFF"),
+        ClubSeed(name: "Serra de Arouca", shortName: "SDA", stadium: "Estádio da Serra", primary: "FDB913", secondary: "1B3A8C"),
+        ClubSeed(name: "Moreira Cónego", shortName: "MCO", stadium: "Parque do Cónego", primary: "00843D", secondary: "FFFFFF"),
+        ClubSeed(name: "Açores Atlântico", shortName: "AAT", stadium: "Estádio do Atlântico", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "Trás-os-Montes FC", shortName: "TMF", stadium: "Estádio das Termas", primary: "1B3A8C", secondary: "E30613"),
+        ClubSeed(name: "Algarve Farense", shortName: "ALF", stadium: "Estádio do Algarve", primary: "111111", secondary: "FFFFFF")
+    ])
+
+    // MARK: - Netherlands
+
+    static let netherlands = CountryInfo(code: "NL", leagueName: "Polder Divisie", strength: 0.84, clubs: [
+        ClubSeed(name: "Amstel Ajacieden", shortName: "AMA", stadium: "Amstel Arena", primary: "D2122E", secondary: "FFFFFF"),
+        ClubSeed(name: "Maasstad Rotterdam", shortName: "MAA", stadium: "Havenstadion", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "Lichtstad Eindhoven", shortName: "LIE", stadium: "Lichtstad Stadion", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "Kaasstad Alkmaar", shortName: "KAA", stadium: "Kaasmarkt Park", primary: "D2122E", secondary: "FFFFFF"),
+        ClubSeed(name: "Tukkers Twente", shortName: "TUT", stadium: "De Veste", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "Domstad Utrecht", shortName: "DOU", stadium: "Domstadion", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "Friese Pompeblêden", shortName: "FRP", stadium: "Abe's Veld", primary: "1B3A8C", secondary: "FFFFFF"),
+        ClubSeed(name: "Noorderlicht Groningen", shortName: "NOG", stadium: "Noorderpark", primary: "00843D", secondary: "FFFFFF"),
+        ClubSeed(name: "Gelre Vitesse", shortName: "GEV", stadium: "Gelre Koepel", primary: "FDB913", secondary: "111111"),
+        ClubSeed(name: "Kasteel Sparta", shortName: "KSP", stadium: "Het Kasteel", primary: "E30613", secondary: "FFFFFF"),
+        ClubSeed(name: "Adelaars Deventer", shortName: "ADE", stadium: "De Adelaar", primary: "E30613", secondary: "FDB913"),
+        ClubSeed(name: "Waal Nijmegen", shortName: "WAN", stadium: "Waalstadion", primary: "E30613", secondary: "00843D"),
+        ClubSeed(name: "Almelo Heraclieden", shortName: "ALH", stadium: "Almelo Arena", primary: "111111", secondary: "FFFFFF"),
+        ClubSeed(name: "Koning Willem Tilburg", shortName: "KWT", stadium: "Koningsstadion", primary: "1B3A8C", secondary: "E30613"),
+        ClubSeed(name: "Fortuna Limburgia", shortName: "FOL", stadium: "Zitterd Park", primary: "FDB913", secondary: "00843D"),
+        ClubSeed(name: "Blauwvingers Zwolle", shortName: "BLZ", stadium: "Blauwvinger Park", primary: "1B3A8C", secondary: "FFFFFF"),
+        ClubSeed(name: "Polderstad Almere", shortName: "POA", stadium: "Polderstadion", primary: "E30613", secondary: "111111"),
+        ClubSeed(name: "Baronie Breda", shortName: "BAB", stadium: "Baronie Stadion", primary: "FDB913", secondary: "111111")
     ])
 }

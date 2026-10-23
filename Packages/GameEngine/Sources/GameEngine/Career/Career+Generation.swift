@@ -106,6 +106,8 @@ extension Career {
         inbox.removeAll()
         offers.removeAll()
         talks.removeAll()
+        scoutMissions.removeAll()
+        scoutReports.removeAll()
         userTactics = Tactics(formation: club.formation, starters: [], bench: [])
         autoPickLineup()
         manager = Manager.starting(at: club)

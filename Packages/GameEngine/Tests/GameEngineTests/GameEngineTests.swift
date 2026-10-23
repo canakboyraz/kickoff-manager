@@ -6,14 +6,14 @@ final class GameEngineTests: XCTestCase {
 
     func testWorldGeneration() {
         let career = Career.generate(seed: 42)
-        XCTAssertEqual(career.leagues.count, 5)
+        XCTAssertEqual(career.leagues.count, 8)
         for league in career.leagues {
             XCTAssertEqual(league.clubIDs.count, 18)
             XCTAssertEqual(league.matchdayCount, 34)
             XCTAssertEqual(league.fixtures.count, 18 * 17)
         }
-        XCTAssertEqual(career.clubs.count, 90)
-        XCTAssertEqual(career.players.values.filter { $0.clubID != nil }.count, 90 * 24)
+        XCTAssertEqual(career.clubs.count, 144)
+        XCTAssertEqual(career.players.values.filter { $0.clubID != nil }.count, 144 * 24)
         XCTAssertEqual(career.freeAgentCount, 60)
         XCTAssertTrue(career.players.values.allSatisfy { $0.fitness == 100 && !$0.isTransferListed })
     }
@@ -549,5 +549,63 @@ final class GameEngineTests: XCTestCase {
         json["version"] = 3
         let loaded = try JSONDecoder().decode(Career.self, from: JSONSerialization.data(withJSONObject: json))
         XCTAssertEqual(loaded.freeAgentCount, 60)
+    }
+
+    // MARK: - 0.6: scouts, bonuses, eight leagues
+
+    func testScoutFindsCheaperPlayers() {
+        var career = Career.generate(seed: 71)
+        career.chooseClub(career.leagues[0].clubIDs[4])
+        let balance = career.userClub.finances.balance
+        let brief = ScoutBrief(position: .striker, maxAge: 23, countryCode: "ES")
+        XCTAssertEqual(career.startScoutMission(brief), .started(weeks: 2))
+        XCTAssertEqual(career.userClub.finances.balance, balance - career.scoutCost)
+        XCTAssertEqual(career.startScoutMission(ScoutBrief()), .started(weeks: 3))
+        XCTAssertEqual(career.startScoutMission(ScoutBrief()), .tooManyMissions)
+
+        for _ in 0..<2 {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        XCTAssertEqual(career.scoutMissions.count, 1)
+        let found = career.scoutedPlayers
+        XCTAssertFalse(found.isEmpty)
+        for entry in found {
+            XCTAssertEqual(entry.player.position, .striker)
+            XCTAssertLessThanOrEqual(entry.player.age(in: career.season), 23)
+            XCTAssertEqual(entry.player.clubID.flatMap { career.club($0)?.countryCode }, "ES")
+        }
+        // The scout's contacts knock money off the asking price and the wage demand.
+        let entry = found.max { career.askingPrice(for: $0.player.id) < career.askingPrice(for: $1.player.id) }!
+        let asking = career.askingPrice(for: entry.player.id)
+        let demand = career.wageDemand(for: entry.player.id)
+        let report = entry.report
+        career.scoutReports.removeAll()
+        XCTAssertLessThan(asking, career.askingPrice(for: entry.player.id))
+        XCTAssertLessThanOrEqual(demand, career.wageDemand(for: entry.player.id))
+        XCTAssertGreaterThanOrEqual(report.feeDiscount, 0.12)
+        XCTAssertTrue(career.inbox.contains { if case .scoutReport = $0.kind { return true }; return false })
+    }
+
+    func testBonusAddsTransferMoney() {
+        var career = Career.generate(seed: 72)
+        career.chooseClub(career.leagues[2].clubIDs[9])
+        let before = career.userClub.finances
+        career.receiveBonus(5_000_000, source: .penalty)
+        XCTAssertEqual(career.userClub.finances.transferBudget, before.transferBudget + 5_000_000)
+        XCTAssertEqual(career.userClub.finances.balance, before.balance + 5_000_000)
+    }
+
+    func testEightLeagueQualification() {
+        let rankings = (0..<8).map { index in
+            (strength: 1.0 - Double(index) * 0.02, order: (0..<18).map { _ in UUID() })
+        }
+        let qualifiers = Career.europeanQualifiers(rankings: rankings)
+        XCTAssertEqual(qualifiers[.eliteCup]?.count, 16)
+        XCTAssertEqual(qualifiers[.continentalLeague]?.count, 16)
+        XCTAssertEqual(Set(qualifiers[.eliteCup]! + qualifiers[.continentalLeague]!).count, 32)
+        let career = Career.generate(seed: 73)
+        XCTAssertEqual(Set(career.leagues.map(\.countryCode)), ["TR", "EN", "ES", "DE", "IT", "FR", "PT", "NL"])
+        XCTAssertEqual(career.cups.map(\.clubIDs.count), [16, 16])
     }
 }

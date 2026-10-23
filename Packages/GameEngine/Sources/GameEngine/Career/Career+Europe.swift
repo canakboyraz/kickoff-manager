@@ -29,18 +29,24 @@ extension Career {
         kind == .eliteCup ? 1.8 : 1.3
     }
 
-    /// European places per league, strongest league first (16 clubs per cup).
-    static let eliteQuota = [4, 3, 3, 3, 3]
-    static let continentalQuota = [3, 4, 3, 3, 3]
+    /// European places per league, strongest league first. Each cup has 16 clubs, so the
+    /// quotas depend on how many leagues the world has (older saves have five).
+    static func quotas(leagueCount: Int) -> (elite: [Int], continental: [Int]) {
+        if leagueCount <= 5 {
+            return ([4, 3, 3, 3, 3], [3, 4, 3, 3, 3])
+        }
+        return ([3, 3, 2, 2, 2, 2, 1, 1], [2, 2, 2, 2, 2, 2, 2, 2])
+    }
 
     /// Turns final league orders into cup entrants: e.g. places 1–3 → Elite Cup, 4–6 → Continental League.
     static func europeanQualifiers(rankings: [(strength: Double, order: [UUID])]) -> [CompetitionKind: [UUID]] {
         let sorted = rankings.sorted { $0.strength > $1.strength }
+        let quota = quotas(leagueCount: rankings.count)
         var elite: [UUID] = []
         var continental: [UUID] = []
         for (index, ranking) in sorted.enumerated() {
-            let elitePlaces = index < eliteQuota.count ? eliteQuota[index] : 2
-            let continentalPlaces = index < continentalQuota.count ? continentalQuota[index] : 2
+            let elitePlaces = index < quota.elite.count ? quota.elite[index] : 0
+            let continentalPlaces = index < quota.continental.count ? quota.continental[index] : 0
             elite += ranking.order.prefix(elitePlaces)
             continental += ranking.order.dropFirst(elitePlaces).prefix(continentalPlaces)
         }
@@ -51,8 +57,9 @@ extension Career {
     public func europeanPlaces(in league: League) -> (elite: Int, continental: Int) {
         let order = leagues.sorted { $0.strength > $1.strength }.map(\.id)
         let index = order.firstIndex(of: league.id) ?? order.count
-        let elite = index < Career.eliteQuota.count ? Career.eliteQuota[index] : 2
-        let continental = index < Career.continentalQuota.count ? Career.continentalQuota[index] : 2
+        let quota = Career.quotas(leagueCount: leagues.count)
+        let elite = index < quota.elite.count ? quota.elite[index] : 0
+        let continental = index < quota.continental.count ? quota.continental[index] : 0
         return (elite, continental)
     }
 
