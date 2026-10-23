@@ -53,6 +53,11 @@ struct PlayerDetailView: View {
                 Text("\(Flags.emoji(player.nationality)) \(Flags.countryName(player.nationality)) · \(L("format.age", String(player.age(in: career.season))))")
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
+                if player.isFreeAgent {
+                    Chip(text: L("freeAgent.badge"), icon: "figure.walk", color: Theme.positive)
+                } else if player.isRetired {
+                    Chip(text: L("player.retired"), icon: "moon.zzz.fill", color: Theme.textMuted)
+                }
                 if let clubID = player.clubID, let club = career.club(clubID) {
                     HStack(spacing: 6) {
                         CrestView(club: club, size: 18)
@@ -109,6 +114,17 @@ struct PlayerDetailView: View {
                     .foregroundStyle(Theme.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        } else if player.isFreeAgent {
+            Button {
+                showBid = true
+            } label: {
+                Label(L("freeAgent.offerContract"), systemImage: "signature")
+            }
+            .buttonStyle(GoldButtonStyle())
+            Text(L("freeAgent.detailHint", Fmt.wage(career.wageDemand(for: player.id))))
+                .font(.caption)
+                .foregroundStyle(Theme.textMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
         } else if player.clubID != nil {
             let inTalks = career.negotiation(for: player.id) != nil
             Button {
@@ -148,7 +164,14 @@ struct PlayerDetailView: View {
             SectionTitle(text: L("player.details"))
             detailRow(L("player.value"), Fmt.money(player.marketValue(season: career.season)))
             detailRow(L("player.wage"), Fmt.wage(player.contract.weeklyWage))
-            detailRow(L("player.contract"), Fmt.seasonLabel(player.contract.expiresSeason))
+            if !player.isFreeAgent {
+                detailRow(L("player.contract"), Fmt.seasonLabel(player.contract.expiresSeason))
+                if player.clubID == career.userClubID && player.contract.expiresSeason <= career.season {
+                    Label(L("contracts.playerWarning"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.warning)
+                }
+            }
             HStack(spacing: 10) {
                 Text(L("player.fitness")).font(.subheadline).foregroundStyle(Theme.textSecondary)
                 ValueBar(value: player.fitness, maxValue: 100, color: Theme.fitnessColor(player.fitness))

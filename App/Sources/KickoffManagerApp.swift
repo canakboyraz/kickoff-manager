@@ -4,6 +4,7 @@ import UIKit
 @main
 struct KickoffManagerApp: App {
     @State private var store = GameStore()
+    @State private var purchases = PurchaseManager()
 
     init() {
         let tabBar = UITabBarAppearance()
@@ -24,6 +25,7 @@ struct KickoffManagerApp: App {
         WindowGroup {
             RootView()
                 .environment(store)
+                .environment(purchases)
                 .preferredColorScheme(.dark)
                 .tint(Theme.gold)
         }
@@ -55,13 +57,14 @@ struct MainTabView: View {
 
     var body: some View {
         let needsChanges = store.career?.needsLineupChanges ?? false
+        let expiring = store.career?.expiringContracts.count ?? 0
         TabView(selection: Binding(get: { store.selectedTab }, set: { store.selectedTab = $0 })) {
             NavigationStack { HomeView() }
                 .tabItem { Label(L("tab.home"), systemImage: "house.fill") }
                 .tag(AppTab.home)
             NavigationStack { SquadView() }
                 .tabItem { Label(L("tab.squad"), systemImage: "tshirt.fill") }
-                .badge(needsChanges ? Text("!") : nil)
+                .badge(needsChanges ? Text("!") : (expiring > 0 ? Text("\(expiring)") : nil))
                 .tag(AppTab.squad)
             NavigationStack { TransfersView() }
                 .tabItem { Label(L("tab.transfers"), systemImage: "arrow.left.arrow.right") }
@@ -74,6 +77,11 @@ struct MainTabView: View {
                 .tabItem { Label(L("tab.league"), systemImage: "list.number") }
                 .tag(AppTab.league)
         }
+        .task {
+            // The tracking prompt only appears while the app is active, so wait a moment.
+            try? await Task.sleep(for: .seconds(1.5))
+            AdManager.shared.start()
+        }
     }
 }
 
@@ -81,11 +89,13 @@ struct MainTabView: View {
 struct PlayerLink: Hashable { let id: UUID }
 struct MatchLink: Hashable { let fixtureID: UUID }
 struct InboxLink: Hashable {}
+struct ContractsLink: Hashable {}
 
 extension View {
     func gameDestinations() -> some View {
         navigationDestination(for: PlayerLink.self) { PlayerDetailView(playerID: $0.id) }
             .navigationDestination(for: MatchLink.self) { MatchReportView(fixtureID: $0.fixtureID) }
             .navigationDestination(for: InboxLink.self) { _ in InboxView() }
+            .navigationDestination(for: ContractsLink.self) { _ in ContractsView() }
     }
 }

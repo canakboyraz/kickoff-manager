@@ -18,6 +18,7 @@ struct HomeView: View {
             VStack(spacing: 14) {
                 clubHeader(career, club: club)
                 windowBanner(career)
+                contractsBanner(career)
                 ForEach(career.jobOffers) { offer in
                     VStack(alignment: .leading, spacing: 6) {
                         SectionTitle(text: L("job.offerTitle"))
@@ -59,7 +60,7 @@ struct HomeView: View {
         .sheet(item: Binding(
             get: { store.presentedReport },
             set: { store.presentedReport = $0 }
-        )) { box in
+        ), onDismiss: showAdIfDue) { box in
             WeekReportSheet(report: box.report) { summary in
                 seasonSummary = summary
             }
@@ -103,6 +104,45 @@ struct HomeView: View {
             }
             Spacer()
             Chip(text: Fmt.money(club.finances.balance), icon: "dollarsign.circle.fill")
+        }
+    }
+
+    /// Every few played weeks an ad is shown once the match report is closed.
+    private func showAdIfDue() {
+        guard seasonSummary == nil, AdManager.shared.isAdDue else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            AdManager.shared.presentIfDue()
+        }
+    }
+
+    /// Reminder for contracts that run out at the end of the season.
+    @ViewBuilder
+    private func contractsBanner(_ career: Career) -> some View {
+        let expiring = career.expiringContracts
+        if !expiring.isEmpty {
+            NavigationLink(value: ContractsLink()) {
+                HStack(spacing: 10) {
+                    Image(systemName: "doc.text.fill")
+                        .font(.title3)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L("contracts.banner", String(expiring.count)))
+                            .font(.subheadline.weight(.bold))
+                        Text(L("contracts.bannerDetail", String(career.weeksUntilContractsExpire),
+                               expiring.prefix(3).map(\.shortName).joined(separator: ", ")))
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                }
+                .foregroundStyle(Theme.warning)
+                .gameCard(padding: 10, highlight: Theme.warning.opacity(0.6))
+            }
+            .buttonStyle(.plain)
         }
     }
 

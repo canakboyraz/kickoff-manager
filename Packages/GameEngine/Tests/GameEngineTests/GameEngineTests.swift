@@ -13,7 +13,8 @@ final class GameEngineTests: XCTestCase {
             XCTAssertEqual(league.fixtures.count, 18 * 17)
         }
         XCTAssertEqual(career.clubs.count, 90)
-        XCTAssertEqual(career.players.count, 90 * 24)
+        XCTAssertEqual(career.players.values.filter { $0.clubID != nil }.count, 90 * 24)
+        XCTAssertEqual(career.freeAgentCount, 60)
         XCTAssertTrue(career.players.values.allSatisfy { $0.fitness == 100 && !$0.isTransferListed })
     }
 
@@ -449,5 +450,104 @@ final class GameEngineTests: XCTestCase {
         XCTAssertEqual(loaded.id, player.id)
         XCTAssertEqual(loaded.suspendedMatches, 0)
         XCTAssertEqual(loaded.yellowCards, 0)
+    }
+
+    // MARK: - 0.5: free agents, contracts, leaderboards, budgets
+
+    func testFreeAgentSignsWithoutFeeForHigherWages() {
+        var career = Career.generate(seed: 61)
+        career.chooseClub(career.leagues[0].clubIDs[2])
+        // Free agents can sign outside the window, and no fee is paid.
+        while career.isTransferWindowOpen {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        let agent = career.freeAgents().first { career.isInterestedInJoining($0.id) }!
+        let normalDemand = Double(agent.expectedWage(season: career.season)) * 1.1
+        let demand = career.wageDemand(for: agent.id)
+        XCTAssertGreaterThan(Double(demand), normalDemand)
+        XCTAssertTrue(career.player(agent.id)?.isFreeAgent ?? false)
+        career.clubs[career.userClubID]?.finances.wageBudget += demand * 2
+        let budget = career.userClub.finances.transferBudget
+        let result = career.offerContract(playerID: agent.id, weeklyWage: demand, years: 2)
+        XCTAssertEqual(result, .signed(fee: 0, weeklyWage: demand, years: 2))
+        XCTAssertEqual(career.player(agent.id)?.clubID, career.userClubID)
+        XCTAssertFalse(career.player(agent.id)?.isFreeAgent ?? true)
+        XCTAssertEqual(career.userClub.finances.transferBudget, budget)
+    }
+
+    func testExpiredContractsCreateFreeAgentsAndReminders() {
+        var career = Career.generate(seed: 62)
+        career.chooseClub(career.leagues[1].clubIDs[4])
+        let leaving = career.userSquad.prefix(2).map(\.id)
+        for id in leaving { career.players[id]?.contract.expiresSeason = career.season }
+        XCTAssertEqual(Set(career.expiringContracts.map(\.id)), Set(career.userSquad.filter { $0.contract.expiresSeason <= career.season }.map(\.id)))
+        XCTAssertTrue(leaving.allSatisfy { id in career.expiringContracts.contains { $0.id == id } })
+
+        career.manager.boardConfidence = 100
+        career.advanceWeek()
+        XCTAssertTrue(career.inbox.contains {
+            if case .contractsReminder(let ids, false) = $0.kind { return Set(leaving).isSubset(of: ids) }
+            return false
+        })
+        while career.week < career.matchdayCount - 1 {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        career.manager.boardConfidence = 100
+        career.advanceWeek()
+        for id in leaving {
+            guard let player = career.player(id) else { continue }
+            XCTAssertNotEqual(player.clubID, career.userClubID)
+        }
+        // The pool stays healthy and every free agent is still an active player.
+        XCTAssertGreaterThanOrEqual(career.freeAgentCount, 40)
+        XCTAssertLessThanOrEqual(career.freeAgentCount, 200)
+        XCTAssertTrue(career.freeAgents().allSatisfy { $0.age(in: career.season) <= 34 && !$0.isRetired })
+    }
+
+    func testLeaderboardsCountLeagueGoals() {
+        var career = Career.generate(seed: 63)
+        career.chooseClub(career.leagues[0].clubIDs[0])
+        for _ in 0..<6 {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        let league = career.userLeague
+        let scorers = career.leaderboard(.goals, leagueID: league.id)
+        XCTAssertFalse(scorers.isEmpty)
+        XCTAssertEqual(scorers.map(\.goals), scorers.map(\.goals).sorted(by: >))
+        let goalsInLeague = league.fixtures.compactMap(\.result).flatMap(\.events).filter { $0.kind == .goal }
+        let top = scorers[0]
+        XCTAssertEqual(top.goals, goalsInLeague.filter { $0.playerID == top.playerID }.count)
+        let assists = career.leaderboard(.assists, leagueID: league.id)
+        XCTAssertEqual(assists.map(\.assists), assists.map(\.assists).sorted(by: >))
+        XCTAssertTrue(assists.allSatisfy { $0.assists > 0 })
+    }
+
+    func testMovingBudgetBetweenTransfersAndWages() {
+        var career = Career.generate(seed: 64)
+        career.chooseClub(career.leagues[0].clubIDs[1])
+        let before = career.userClub.finances
+        let result = career.moveBudget(weekly: 10_000)
+        XCTAssertEqual(result, .moved(transferBudget: before.transferBudget - 10_000 * Career.budgetConversionRate,
+                                      wageBudget: before.wageBudget + 10_000))
+        // Moving it back restores the original budgets.
+        career.moveBudget(weekly: -10_000)
+        XCTAssertEqual(career.userClub.finances.transferBudget, before.transferBudget)
+        XCTAssertEqual(career.userClub.finances.wageBudget, before.wageBudget)
+        // The wage budget can't drop below the wage bill.
+        XCTAssertEqual(career.moveBudget(weekly: -(career.maxWageToTransfer + 1_000)), .belowWageBill)
+        XCTAssertEqual(career.moveBudget(weekly: career.maxTransferToWage + 1), .notEnough)
+    }
+
+    func testOldSaveGetsFreeAgents() throws {
+        var career = Career.generate(seed: 65)
+        career.chooseClub(career.leagues[0].clubIDs[3])
+        for agent in career.freeAgents(limit: 500) { career.players.removeValue(forKey: agent.id) }
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(career)) as! [String: Any]
+        json["version"] = 3
+        let loaded = try JSONDecoder().decode(Career.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(loaded.freeAgentCount, 60)
     }
 }

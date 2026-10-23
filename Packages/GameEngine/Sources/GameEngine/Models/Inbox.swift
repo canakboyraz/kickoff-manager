@@ -31,6 +31,8 @@ public enum InboxKind: Codable, Hashable, Sendable {
     /// End-of-season verdict: where the board expected the club to finish and where it did.
     case seasonReview(expected: Int, position: Int, confidence: Int)
     case suspension(playerID: UUID, matches: Int, reason: SuspensionReason)
+    /// Players whose contracts run out at the end of this season. `final` = last few weeks.
+    case contractsReminder(playerIDs: [UUID], final: Bool)
 }
 
 public enum SuspensionReason: String, Codable, Hashable, Sendable {

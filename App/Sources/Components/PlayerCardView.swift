@@ -7,6 +7,8 @@ struct PlayerCardView: View {
     /// The slot he fills on the team sheet (position label turns amber when out of position).
     var slot: Position? = nil
     var isSelected = false
+    /// Contract runs out at the end of this season.
+    var contractEnding = false
 
     private var hasGrowth: Bool { player.potential - player.overall >= 8 }
     private var outOfPosition: Bool { slot.map { $0 != player.position } ?? false }
@@ -26,6 +28,8 @@ struct PlayerCardView: View {
                         Image(systemName: "rectangle.portrait.fill").foregroundStyle(Theme.negative)
                     } else if player.isTransferListed {
                         Image(systemName: "tag.fill").foregroundStyle(Theme.warning)
+                    } else if contractEnding {
+                        Image(systemName: "doc.text.fill").foregroundStyle(Theme.warning)
                     }
                     if hasGrowth {
                         Image(systemName: "arrow.up.right").foregroundStyle(Theme.positive)

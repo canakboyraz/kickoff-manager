@@ -6,9 +6,11 @@ struct LeagueView: View {
     @State private var leagueID: UUID?
     @State private var matchday: Int?
     @State private var mode: Mode = .league
+    @State private var statKind: LeaderboardKind = .goals
 
     enum Mode: Hashable {
         case league
+        case stats
         case cup(CompetitionKind)
     }
 
@@ -17,20 +19,22 @@ struct LeagueView: View {
             if let career = store.career {
                 let league = leagueID.flatMap { career.league($0) } ?? career.userLeague
                 VStack(spacing: 14) {
-                    if !career.cups.isEmpty {
-                        Picker("", selection: $mode) {
-                            Text(L("tab.league")).tag(Mode.league)
-                            ForEach(career.cups) { cup in
-                                Text(cup.kind.label).tag(Mode.cup(cup.kind))
-                            }
+                    Picker("", selection: $mode) {
+                        Text(L("tab.league")).tag(Mode.league)
+                        Text(L("stats.tab")).tag(Mode.stats)
+                        ForEach(career.cups) { cup in
+                            Text(cup.kind.label).tag(Mode.cup(cup.kind))
                         }
-                        .pickerStyle(.segmented)
                     }
+                    .pickerStyle(.segmented)
                     switch mode {
                     case .league:
                         leaguePicker(career, selected: league)
                         table(career, league: league)
                         fixtures(career, league: league)
+                    case .stats:
+                        leaguePicker(career, selected: league)
+                        leaderboard(career, league: league)
                     case .cup(let kind):
                         if let cup = career.cup(kind) {
                             CupView(cup: cup, career: career)
@@ -44,6 +48,73 @@ struct LeagueView: View {
         .navigationTitle(L("tab.league"))
         .navigationBarTitleDisplayMode(.inline)
         .gameDestinations()
+    }
+
+    private func leaderboard(_ career: Career, league: League) -> some View {
+        let entries = career.leaderboard(statKind, leagueID: league.id, limit: 20)
+        return VStack(spacing: 10) {
+            Picker("", selection: $statKind) {
+                Text(L("stats.goals")).tag(LeaderboardKind.goals)
+                Text(L("stats.assists")).tag(LeaderboardKind.assists)
+            }
+            .pickerStyle(.segmented)
+            if entries.isEmpty {
+                Text(L("stats.empty"))
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textMuted)
+                    .padding(.top, 30)
+            }
+            LazyVStack(spacing: 0) {
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    if let player = career.player(entry.playerID) {
+                        NavigationLink(value: PlayerLink(id: player.id)) {
+                            leaderRow(rank: index + 1, entry: entry, player: player, career: career)
+                        }
+                        .buttonStyle(.plain)
+                        Divider().overlay(Theme.stroke)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+    }
+
+    private func leaderRow(rank: Int, entry: LeaderboardEntry, player: Player, career: Career) -> some View {
+        let isUser = entry.clubID == career.userClubID
+        let main = statKind == .goals ? entry.goals : entry.assists
+        let other = statKind == .goals
+            ? L("stats.assistsShort", String(entry.assists))
+            : L("stats.goalsShort", String(entry.goals))
+        return HStack(spacing: 10) {
+            Text("\(rank)")
+                .font(.subheadline.weight(.heavy).monospacedDigit())
+                .foregroundStyle(rank <= 3 ? Theme.gold : Theme.textMuted)
+                .frame(width: 24, alignment: .leading)
+            PlayerAvatar(player: player, size: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(player.shortName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isUser ? Theme.goldLight : Theme.textPrimary)
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    if let club = career.club(entry.clubID) {
+                        CrestView(club: club, size: 14)
+                        Text(club.shortName)
+                    }
+                    Text("· \(player.position.shortLabel) · \(L("stats.apps", String(entry.appearances))) · \(other)")
+                }
+                .font(.caption2)
+                .foregroundStyle(Theme.textMuted)
+                .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Text("\(main)")
+                .font(.system(size: 22, weight: .heavy, design: .rounded).monospacedDigit())
+                .foregroundStyle(Theme.goldLight)
+        }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
     }
 
     private func leaguePicker(_ career: Career, selected: League) -> some View {

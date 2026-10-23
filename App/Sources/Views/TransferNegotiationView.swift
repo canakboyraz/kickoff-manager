@@ -159,6 +159,9 @@ struct NegotiationSheet: View {
                     .padding(.top, 8)
             } else if let agreed = talk?.agreedFee {
                 contractStage(career, player: player, fee: agreed, talk: talk)
+            } else if player.isFreeAgent {
+                // Free agents: no fee, straight to personal terms.
+                contractStage(career, player: player, fee: 0, talk: talk)
             } else {
                 feeStage(career, player: player, talk: talk)
             }
@@ -180,6 +183,8 @@ struct NegotiationSheet: View {
                         CrestView(club: club, size: 16)
                         Text(club.name).font(.caption).foregroundStyle(Theme.textMuted)
                     }
+                } else if player.isFreeAgent {
+                    Chip(text: L("freeAgent.badge"), icon: "figure.walk", color: Theme.positive)
                 }
             }
             Spacer()
@@ -268,12 +273,16 @@ struct NegotiationSheet: View {
         let lower = Double(max(500, demand / 2 / 500 * 500))
         let upper = Double(max(demand * 2, 2_000))
         return VStack(spacing: 14) {
-            HStack {
-                StepBadge(number: 1, title: L("talks.step.fee"), phase: .done)
-                StepBadge(number: 2, title: L("talks.step.contract"), phase: .active)
+            if player.isFreeAgent {
+                FeedbackBanner(feedback: Feedback(tone: .neutral, text: L("freeAgent.talksHint")))
+            } else {
+                HStack {
+                    StepBadge(number: 1, title: L("talks.step.fee"), phase: .done)
+                    StepBadge(number: 2, title: L("talks.step.contract"), phase: .active)
+                }
             }
             VStack(spacing: 8) {
-                InfoRow(title: L("talks.agreedFee"), value: Fmt.money(fee), color: Theme.positive)
+                InfoRow(title: L("talks.agreedFee"), value: player.isFreeAgent ? L("freeAgent.noFee") : Fmt.money(fee), color: Theme.positive)
                 InfoRow(title: L("talks.currentWage"), value: Fmt.wage(player.contract.weeklyWage))
                 if let counter = talk?.lastWageCounter {
                     InfoRow(title: L("talks.wageCounter"), value: Fmt.wage(counter), color: Theme.goldLight)
@@ -311,7 +320,7 @@ struct NegotiationSheet: View {
             switch response {
             case .signed(let paid, _, _):
                 dismiss()
-                onFinish(L("talks.signed", name, Fmt.money(paid)))
+                onFinish(paid == 0 ? L("talks.signedFree", name) : L("talks.signed", name, Fmt.money(paid)))
             case .counter(let demanded):
                 feedback = Feedback(tone: .neutral, text: L("talks.wageCounterText", Fmt.wage(demanded)))
             case .walkedAway:

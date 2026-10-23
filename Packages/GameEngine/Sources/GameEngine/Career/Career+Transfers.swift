@@ -98,6 +98,9 @@ extension Career {
         var demand = max(Double(player.expectedWage(season: season)) * 1.1, Double(player.contract.weeklyWage) * 1.15)
         if let sellerID = player.clubID, let seller = clubs[sellerID] {
             demand *= 1 + Double(max(0, seller.reputation - userClub.reputation)) / 220
+        } else if player.isFreeAgent {
+            // No fee to pay, so free agents want a bigger share of the money as wages.
+            demand = Double(player.expectedWage(season: season)) * Career.freeAgentWagePremium
         }
         return Career.roundUp(demand, step: 500)
     }
@@ -186,12 +189,25 @@ extension Career {
     }
 
     /// Step 2: personal terms. The player accepts a wage close to his demand.
+    /// Free agents skip step 1: there is no fee, and they can sign outside the transfer windows.
     public mutating func offerContract(playerID: UUID, weeklyWage: Int, years: Int) -> ContractResponse {
-        guard isTransferWindowOpen else { return .windowClosed }
-        guard var talk = talks[playerID] else { return .noFeeAgreed }
+        guard let player = players[playerID] else { return .noFeeAgreed }
+        let isFree = player.isFreeAgent
+        guard isFree || isTransferWindowOpen else { return .windowClosed }
+        var talk: TransferTalks
+        if let existing = talks[playerID] {
+            talk = existing
+        } else if isFree {
+            talk = TransferTalks(
+                playerID: playerID, agreedFee: 0, lastCounter: nil, lastWageCounter: nil,
+                patience: Career.talkPatience, contractPatience: Career.contractTalkPatience, isClosed: false
+            )
+        } else {
+            return .noFeeAgreed
+        }
         guard !talk.isClosed else { return .walkedAway }
-        guard let fee = talk.agreedFee,
-              let player = players[playerID], let sellerID = player.clubID, sellerID != userClubID else { return .noFeeAgreed }
+        let sellerID = player.clubID
+        guard let fee = talk.agreedFee, isFree || (sellerID != nil && sellerID != userClubID) else { return .noFeeAgreed }
         guard userClub.playerIDs.count < Career.maxSquadSize else { return .squadFull }
         guard fee <= availableTransferFunds else { return .insufficientBudget }
         guard wageBill(of: userClubID) + weeklyWage <= userClub.finances.wageBudget else { return .wageBudgetExceeded }
@@ -213,8 +229,10 @@ extension Career {
             clubs[userClubID]?.finances.transferBudget -= fee
             clubs[userClubID]?.finances.balance -= fee
             clubs[userClubID]?.finances.seasonExpenses += fee
-            clubs[sellerID]?.finances.balance += fee
-            clubs[sellerID]?.finances.seasonIncome += fee
+            if let sellerID {
+                clubs[sellerID]?.finances.balance += fee
+                clubs[sellerID]?.finances.seasonIncome += fee
+            }
             movePlayer(playerID, from: sellerID, to: userClubID, wage: weeklyWage, years: contractYears)
             talks.removeValue(forKey: playerID)
             post(.signingCompleted(playerID: playerID, fee: fee))
@@ -237,8 +255,8 @@ extension Career {
         return .counter(weeklyWage: counter)
     }
 
-    mutating func movePlayer(_ playerID: UUID, from sellerID: UUID, to buyerID: UUID, wage: Int, years: Int) {
-        clubs[sellerID]?.playerIDs.removeAll { $0 == playerID }
+    mutating func movePlayer(_ playerID: UUID, from sellerID: UUID?, to buyerID: UUID, wage: Int, years: Int) {
+        if let sellerID { clubs[sellerID]?.playerIDs.removeAll { $0 == playerID } }
         clubs[buyerID]?.playerIDs.append(playerID)
         players[playerID]?.clubID = buyerID
         players[playerID]?.contract = Contract(weeklyWage: wage, expiresSeason: season + years)

@@ -95,6 +95,7 @@ extension Career {
              order: league.clubIDs.sorted { (clubs[$0]?.reputation ?? 0) > (clubs[$1]?.reputation ?? 0) })
         }
         career.setUpCups(qualifiers: Career.europeanQualifiers(rankings: rankings))
+        career.seedFreeAgents(count: 60, season: season)
         return career
     }
 

@@ -3,6 +3,7 @@ import GameEngine
 
 struct ClubView: View {
     @Environment(GameStore.self) private var store
+    @Environment(PurchaseManager.self) private var purchases
     @State private var notice: String?
     @State private var confirmReset = false
 
@@ -26,6 +27,7 @@ struct ClubView: View {
                     }
                     financesCard(career)
                     historyCard(career)
+                    storeCard()
                     Button(L("club.newCareer"), role: .destructive) { confirmReset = true }
                         .buttonStyle(OutlineButtonStyle(color: Theme.negative))
                         .padding(.top, 10)
@@ -41,6 +43,43 @@ struct ClubView: View {
         }
         .confirmationDialog(L("club.newCareer.confirm"), isPresented: $confirmReset, titleVisibility: .visible) {
             Button(L("club.newCareer"), role: .destructive) { store.abandonCareer() }
+        }
+    }
+
+    /// One-time purchase that switches the ads off for good.
+    private func storeCard() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionTitle(text: L("store.title"))
+            if purchases.adsRemoved {
+                Label(L("store.owned"), systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.positive)
+            } else {
+                Text(L("store.pitch", String(AdConfig.weeksPerAd)))
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textSecondary)
+                Button {
+                    Task { await purchases.buyRemoveAds() }
+                } label: {
+                    Label(purchases.product.map { L("store.buyWithPrice", $0.displayPrice) } ?? L("store.buy"),
+                          systemImage: "nosign")
+                }
+                .buttonStyle(GoldButtonStyle())
+                .disabled(purchases.isWorking)
+            }
+            Button(L("store.restore")) {
+                Task { await purchases.restore() }
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Theme.textMuted)
+            .disabled(purchases.isWorking)
+        }
+        .gameCard()
+        .alert(purchases.message ?? "", isPresented: Binding(
+            get: { purchases.message != nil },
+            set: { if !$0 { purchases.message = nil } }
+        )) {
+            Button(L("common.ok")) {}
         }
     }
 

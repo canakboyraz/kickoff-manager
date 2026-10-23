@@ -15,6 +15,16 @@ struct SquadView: View {
                 VStack(spacing: 14) {
                     controls(career)
                     warnings(career)
+                    if !career.expiringContracts.isEmpty {
+                        NavigationLink(value: ContractsLink()) {
+                            Label(L("contracts.banner", String(career.expiringContracts.count)), systemImage: "doc.text.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Theme.warning)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .gameCard(padding: 10, highlight: Theme.warning.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                    }
                     pitch(career)
                     bench(career)
                     reserves(career)
@@ -213,7 +223,8 @@ struct SquadView: View {
             tap(ref)
         } label: {
             if let player {
-                PlayerCardView(player: player, slot: slot, isSelected: selection == ref)
+                PlayerCardView(player: player, slot: slot, isSelected: selection == ref,
+                               contractEnding: player.contract.expiresSeason <= (store.career?.season ?? 0))
             } else {
                 EmptySlotCard(label: slot?.shortLabel ?? L("squad.emptyBench"), isSelected: selection == ref)
             }

@@ -10,9 +10,10 @@ struct TransfersView: View {
     @State private var affordableOnly = true
     @State private var counterTarget: OfferTarget?
     @State private var notice: String?
+    @State private var showBudget = false
 
     enum Mode: String, CaseIterable, Identifiable {
-        case market, offers, listed
+        case market, free, offers, listed
         var id: String { rawValue }
     }
 
@@ -37,6 +38,7 @@ struct TransfersView: View {
 
                     switch mode {
                     case .market: market(career)
+                    case .free: freeAgents(career)
                     case .offers: offers(career)
                     case .listed: listed(career)
                     }
@@ -48,6 +50,10 @@ struct TransfersView: View {
         .navigationTitle(L("tab.transfers"))
         .navigationBarTitleDisplayMode(.inline)
         .gameDestinations()
+        .sheet(isPresented: $showBudget) {
+            BudgetSheet()
+                .presentationDetents([.medium, .large])
+        }
         .sheet(item: $counterTarget) { target in
             CounterOfferSheet(offerID: target.id) { message in notice = message }
         }
@@ -62,8 +68,15 @@ struct TransfersView: View {
         return VStack(spacing: 10) {
             HStack(spacing: 8) {
                 StatTile(title: L("transfers.budget"), value: Fmt.money(club.finances.transferBudget))
-                StatTile(title: L("transfers.wageRoom"), value: Fmt.money(wageRoom))
+                StatTile(title: L("transfers.wageRoom"), value: Fmt.wage(wageRoom))
             }
+            Button {
+                showBudget = true
+            } label: {
+                Label(L("budget.adjust"), systemImage: "arrow.left.arrow.right.circle.fill")
+                    .font(.caption.weight(.bold))
+            }
+            .buttonStyle(OutlineButtonStyle(color: Theme.goldLight))
             HStack(spacing: 6) {
                 Image(systemName: career.isTransferWindowOpen ? "lock.open.fill" : "lock.fill")
                 Text(career.isTransferWindowOpen ? L("transfers.windowOpen") : L("transfers.windowClosed"))
@@ -131,6 +144,56 @@ struct TransfersView: View {
                             season: career.season,
                             clubName: player.clubID.flatMap { career.club($0)?.shortName },
                             trailing: Fmt.money(player.marketValue(season: career.season))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    Divider().overlay(Theme.stroke)
+                }
+            }
+            .padding(.horizontal, 12)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+    }
+
+    private func freeAgents(_ career: Career) -> some View {
+        let filter = TransferFilter(position: position, maxAge: maxAge < 40 ? maxAge : nil, query: query)
+        let results = career.freeAgents(filter: filter, limit: 80)
+        return VStack(spacing: 10) {
+            Label(L("freeAgent.listHint"), systemImage: "figure.walk")
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .gameCard(padding: 10, highlight: Theme.positive.opacity(0.5))
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)
+                TextField(L("transfers.search"), text: $query)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .foregroundStyle(Theme.textPrimary)
+            }
+            .padding(10)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    filterChip(L("transfers.all"), selected: position == nil) { position = nil }
+                    ForEach(Position.allCases, id: \.self) { item in
+                        filterChip(item.shortLabel, selected: position == item) { position = item }
+                    }
+                }
+            }
+            if results.isEmpty {
+                Text(L("freeAgent.none"))
+                    .foregroundStyle(Theme.textMuted)
+                    .padding(.top, 30)
+            }
+            LazyVStack(spacing: 0) {
+                ForEach(results) { player in
+                    NavigationLink(value: PlayerLink(id: player.id)) {
+                        PlayerRow(
+                            player: player,
+                            season: career.season,
+                            clubName: L("freeAgent.badge"),
+                            trailing: Fmt.wage(career.wageDemand(for: player.id))
                         )
                     }
                     .buttonStyle(.plain)

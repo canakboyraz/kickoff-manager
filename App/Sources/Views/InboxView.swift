@@ -86,7 +86,7 @@ enum MessageText {
             return Content(
                 icon: "signature", color: Theme.positive,
                 title: L("msg.signed.title"),
-                body: L("msg.signed.body", playerName(playerID), Fmt.money(fee))
+                body: fee == 0 ? L("msg.signedFree.body", playerName(playerID)) : L("msg.signed.body", playerName(playerID), Fmt.money(fee))
             )
         case .playerLeft(let playerID, let toClubID, let fee):
             if let toClubID {
@@ -200,6 +200,13 @@ enum MessageText {
                 icon: "hand.wave.fill", color: Theme.positive,
                 title: L("msg.newJob.title"),
                 body: L("msg.newJob.body", clubName(clubID))
+            )
+        case .contractsReminder(let playerIDs, let final):
+            let names = playerIDs.compactMap { career.player($0)?.shortName }.joined(separator: ", ")
+            return Content(
+                icon: "doc.text.fill", color: final ? Theme.negative : Theme.warning,
+                title: L(final ? "msg.contracts.finalTitle" : "msg.contracts.title", String(playerIDs.count)),
+                body: L("msg.contracts.body", names)
             )
         case .suspension(let playerID, let matches, let reason):
             return Content(

@@ -71,7 +71,8 @@ extension Career {
         weeklyFinances()
         tickUpgrades()
         if matchday % 4 == 0 { developmentTick() }
-        if matchday == max(1, matchdayCount - 8) { warnAboutExpiringContracts() }
+        remindAboutExpiringContracts(matchday: matchday)
+        aiFreeAgentSignings()
         // Talks start over when the winter window opens.
         if matchday == matchdayCount / 2 { talks.removeAll() }
         expireOffers()
@@ -254,10 +255,15 @@ extension Career {
         }
     }
 
-    mutating func warnAboutExpiringContracts() {
-        for player in userSquad where player.contract.expiresSeason <= season {
-            post(.contractExpiring(playerID: player.id))
-        }
+    /// Reminds the user about contracts that run out this season: after the first matchday,
+    /// at the halfway point, eight weeks before the end and in the final weeks.
+    mutating func remindAboutExpiringContracts(matchday: Int) {
+        let count = matchdayCount
+        let checkpoints = [1, count / 2, max(1, count - 8), max(1, count - 2)]
+        guard checkpoints.contains(matchday) else { return }
+        let ids = expiringContracts.map(\.id)
+        guard !ids.isEmpty else { return }
+        post(.contractsReminder(playerIDs: ids, final: matchday >= count - 2))
     }
 
 
@@ -320,13 +326,14 @@ extension Career {
         handleRetirementsAndContracts()
         youthIntake()
         maintainAISquads()
+        trimFreeAgents(nextSeason: season + 1)
         return (summary: userSummary, qualifiers: qualifiers)
     }
 
     mutating func handleRetirementsAndContracts() {
         let nextSeason = season + 1
         for id in Array(players.keys) {
-            guard let player = players[id] else { continue }
+            guard let player = players[id], !player.isRetired else { continue }
             let age = player.age(in: nextSeason)
             let retireChance: Double
             switch age {
@@ -336,42 +343,38 @@ extension Career {
             default: retireChance = 1
             }
             if rng.chance(retireChance) {
-                removePlayer(id, leftTo: nil, fee: 0)
+                retire(id)
                 continue
             }
 
-            guard player.contract.expiresSeason <= season else { continue }
+            guard player.clubID != nil, player.contract.expiresSeason <= season else { continue }
             if player.clubID == userClubID && !isUnemployed {
-                // Contracts the user didn't renew run out: the player leaves for free.
-                removePlayer(id, leftTo: nil, fee: 0)
+                // Contracts the user didn't renew run out: the player becomes a free agent.
+                release(id)
             } else if rng.chance(0.85) {
                 players[id]?.contract = Contract(
                     weeklyWage: player.expectedWage(season: nextSeason),
                     expiresSeason: nextSeason + rng.int(1...3)
                 )
             } else {
-                removePlayer(id, leftTo: nil, fee: 0)
+                release(id)
             }
         }
     }
 
-    /// Removes a player from his club. Without a destination he leaves the game world.
+    /// Removes a player from his club. Without a destination he becomes a free agent.
     mutating func removePlayer(_ playerID: UUID, leftTo destination: UUID?, fee: Int) {
         guard let player = players[playerID] else { return }
-        if let clubID = player.clubID {
-            clubs[clubID]?.playerIDs.removeAll { $0 == playerID }
-            if clubID == userClubID {
-                post(.playerLeft(playerID: playerID, toClubID: destination, fee: fee))
+        guard destination == nil else {
+            if let clubID = player.clubID {
+                clubs[clubID]?.playerIDs.removeAll { $0 == playerID }
+                if clubID == userClubID {
+                    post(.playerLeft(playerID: playerID, toClubID: destination, fee: fee))
+                }
             }
+            return
         }
-        if destination == nil {
-            // Keep the record when the user's player left, so old messages can still show his name.
-            if player.clubID == userClubID {
-                players[playerID]?.clubID = nil
-            } else {
-                players.removeValue(forKey: playerID)
-            }
-        }
+        release(playerID)
     }
 
     mutating func youthIntake() {
@@ -416,6 +419,14 @@ extension Career {
                 let have = squad(of: clubID).filter { $0.position == position }.count
                 guard have < wanted else { continue }
                 for _ in have..<wanted {
+                    // A free agent of the right level is the cheapest fix.
+                    if let free = freeAgents(limit: 400).first(where: {
+                        $0.position == position && $0.age(in: nextSeason) <= 32
+                            && abs(Double($0.overall) - average) <= 5
+                    }) {
+                        aiSign(free.id, clubID: clubID)
+                        continue
+                    }
                     let nationality = NamePools.randomNationality(domestic: club.countryCode, domesticShare: 0.6, rng: &rng)
                     let player = PlayerGenerator.make(
                         position: position,

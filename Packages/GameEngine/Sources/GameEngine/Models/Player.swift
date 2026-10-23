@@ -46,6 +46,10 @@ public struct Player: Codable, Identifiable, Hashable, Sendable {
     public var stats: SeasonStats
     public var careerGoals: Int
     public var careerAppearances: Int
+    /// Retired players stay in the save only so old messages can still show their names.
+    public var isRetired: Bool = false
+    /// Club he last played for (set when he becomes a free agent).
+    public var lastClubID: UUID? = nil
 
     /// Fractional development accumulated between attribute changes.
     var developmentProgress: Double
@@ -64,6 +68,9 @@ public struct Player: Codable, Identifiable, Hashable, Sendable {
 
     /// Can be picked for the next match.
     public var isAvailable: Bool { !isInjured && !isSuspended }
+
+    /// Without a club and still playing: can sign for anyone without a transfer fee.
+    public var isFreeAgent: Bool { clubID == nil && !isRetired }
 
     public func age(in season: Int) -> Int { season - birthYear }
 
@@ -152,5 +159,8 @@ extension Player {
         careerAppearances = try c.decode(Int.self, forKey: .careerAppearances)
         developmentProgress = try c.decode(Double.self, forKey: .developmentProgress)
         appearancesSinceTick = try c.decode(Int.self, forKey: .appearancesSinceTick)
+        // Added in 0.5.
+        isRetired = try c.decodeIfPresent(Bool.self, forKey: .isRetired) ?? false
+        lastClubID = try c.decodeIfPresent(UUID.self, forKey: .lastClubID)
     }
 }

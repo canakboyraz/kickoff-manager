@@ -85,6 +85,7 @@ final class GameStore {
         career = updated
         isSimulating = false
         presentedReport = PresentedReport(report: report)
+        AdManager.shared.recordPlayedWeek()
         save()
     }
 
