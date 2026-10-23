@@ -3,9 +3,9 @@
 FC kariyer modu sadeliğinde, kurgusal takımlarla oynanan bir iOS futbol menajerlik oyunu.
 SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 
-## Neler var (v0.5)
+## Neler var (v0.6)
 
-- **5 kurgusal lig**: Hilal Lig (TR), Albion Premier (EN), Liga Ibérica (ES), Bundesklasse (DE), Serie Azzurra (IT). Her ligde 18 kulüp, kulüp başına 24 oyuncu.
+- **8 kurgusal lig**: Hilal Lig (TR), Albion Premier (EN), Liga Ibérica (ES), Bundesklasse (DE), Serie Azzurra (IT), Ligue Tricolore (FR), Liga Lusitana (PT), Polder Divisie (NL). Her ligde 18 kulüp, kulüp başına 24 oyuncu.
 - **Kadro ve diziliş**: 10 diziliş (4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2, 4-1-4-1, 4-3-1-2, 4-3-2-1, 3-4-3, 4-5-1). İlk 11, 7 yedek ve kadro dışı aynı ekranda; iki oyuncuya sırayla dokunarak yer değiştirilir. Otomatik diz butonu.
 - **Oyuncu kartları**: genel güç, mevki, en iyi 3 özellik ve kondisyon çubuğu.
 - **Kondisyon ve yorgunluk**: her maç kondisyon düşürür, hafta içinde toparlanır (sağlık merkezi hızlandırır). Yorgun oyuncu daha kötü oynar ve daha kolay sakatlanır. Maçta en yorgunlar 55–85. dakikalar arasında yedeklerle değişir.
@@ -22,6 +22,8 @@ SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 - **Sözleşme takibi**: sözleşmesi bu sezon biten oyuncular için Sözleşmeler ekranı, ana sayfa ve kadro uyarısı, kartta simge, sezon içinde 4 kez hatırlatma mesajı.
 - **Gol ve asist krallığı**: Lig › İstatistik sekmesinde her lig için ilk 20.
 - **Bütçe aktarma**: transfer bütçesi ile haftalık maaş bütçesi arasında aktarma (haftalık €1 maaş = €40 transfer bütçesi).
+- **Scout**: mevki, lig, yaş, potansiyel ve değer kriterleriyle scout gönderme (aynı anda 2). 2–3 hafta sonra en fazla 5 oyunculuk rapor gelir; bulunan oyuncular o sezon %12–25 daha ucuz bonservis ve %5–12 daha düşük maaşla alınır.
+- **Bedava transfer parası**: saatte bir ödüllü reklam (+€2M) ve günde bir penaltı atışı (gol olursa +€5M).
 - **Reklam ve satın alma**: her 5 oynanan haftada bir geçiş reklamı (AdMob). "Reklamları kaldır" tek seferlik satın alımı (StoreKit 2) ve geri yükleme.
 - **Türkçe + İngilizce** arayüz, otomatik kayıt.
 
@@ -102,7 +104,7 @@ iPhone'daki TestFlight uygulamasından oyunu yükle.
 
 Şu an Google'ın **test** reklam kimlikleri kullanılıyor (test reklamı gösterir, para kazandırmaz).
 
-1. AdMob hesabı aç, iOS uygulamasını ekle. **Uygulama kimliğini** (`ca-app-pub-…~…`) `project.yml` içindeki `GADApplicationIdentifier` yerine, **geçiş reklamı birim kimliğini** (`ca-app-pub-…/…`) `App/Sources/Monetization/AdManager.swift` içindeki `interstitialUnitID` yerine yaz.
+1. AdMob hesabı aç, iOS uygulamasını ekle. **Uygulama kimliğini** (`ca-app-pub-…~…`) `project.yml` içindeki `GADApplicationIdentifier` yerine, **geçiş** ve **ödüllü** reklam birim kimliklerini (`ca-app-pub-…/…`) `App/Sources/Monetization/AdManager.swift` içindeki `interstitialUnitID` ve `rewardedUnitID` yerine yaz.
 2. AdMob'da Gizlilik ve mesajlaşma bölümünden GDPR (AB) onay mesajını oluştur.
 3. App Store Connect › Sözleşmeler: **Ücretli Uygulamalar** sözleşmesini, banka ve vergi bilgilerini tamamla.
 4. App Store Connect › uygulama › Uygulama İçi Satın Almalar: **Tüketilemez** ürün, ürün kimliği `com.canakboyraz.kickoffmanager.removeads`.
