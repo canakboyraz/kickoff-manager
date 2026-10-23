@@ -1,0 +1,127 @@
+Building for debugging...
+[0/13] Write sources
+[2/13] Write swift-version-24593BA9C3E375BF.txt
+[4/36] Emitting module GameEngine
+[5/43] Compiling GameEngine WorldData.swift
+[6/43] Compiling GameEngine Attributes.swift
+[7/43] Compiling GameEngine Club.swift
+[8/43] Compiling GameEngine Cup.swift
+[9/43] Compiling GameEngine Inbox.swift
+[10/43] Compiling GameEngine League.swift
+[11/43] Compiling GameEngine Manager.swift
+[12/43] Compiling GameEngine Career+Contracts.swift
+[13/43] Compiling GameEngine Career+Development.swift
+[14/43] Compiling GameEngine Career+Europe.swift
+[15/43] Compiling GameEngine Career+Facilities.swift
+[16/43] Compiling GameEngine Career+FreeAgents.swift
+[17/43] Compiling GameEngine Career+Generation.swift
+[18/43] Compiling GameEngine Career+Manager.swift
+[19/43] Compiling GameEngine Career+Scouting.swift
+[20/43] Compiling GameEngine Career+Season.swift
+[21/43] Compiling GameEngine Career+Tactics.swift
+[22/43] Compiling GameEngine Career+Transfers.swift
+[23/43] Compiling GameEngine Career.swift
+[24/43] Compiling GameEngine SeededRandom.swift
+[25/43] Compiling GameEngine NamePools.swift
+[26/43] Compiling GameEngine PlayerGenerator.swift
+[27/43] Compiling GameEngine Player.swift
+[28/43] Compiling GameEngine Position.swift
+[29/43] Compiling GameEngine Scout.swift
+[30/43] Compiling GameEngine Tactics.swift
+[31/43] Compiling GameEngine MatchEngine.swift
+[32/43] Compiling GameEngine Scheduler.swift
+[33/43] Compiling GameEngine Selection.swift
+[34/44] Wrapping AST for GameEngine for debugging
+[36/46] Emitting module GameEngineTests
+[37/46] Compiling GameEngineTests GameEngineTests.swift
+[38/47] /__w/kickoff-manager/kickoff-manager/Packages/GameEngine/.build/x86_64-unknown-linux-gnu/debug/GameEnginePackageDiscoveredTests.derived/all-discovered-tests.swift
+[39/47] Write sources
+[40/47] Wrapping AST for GameEngineTests for debugging
+[42/50] Compiling GameEnginePackageDiscoveredTests all-discovered-tests.swift
+[43/50] Compiling GameEnginePackageDiscoveredTests GameEngineTests.swift
+[44/50] Emitting module GameEnginePackageDiscoveredTests
+[45/51] /__w/kickoff-manager/kickoff-manager/Packages/GameEngine/.build/x86_64-unknown-linux-gnu/debug/GameEnginePackageTests.derived/runner.swift
+[46/51] Write sources
+[47/51] Wrapping AST for GameEnginePackageDiscoveredTests for debugging
+[49/53] Compiling GameEnginePackageTests runner.swift
+[50/53] Emitting module GameEnginePackageTests
+[51/54] Wrapping AST for GameEnginePackageTests for debugging
+[52/54] Write Objects.LinkFileList
+[53/54] Linking GameEnginePackageTests.xctest
+Build complete! (15.45s)
+Test Suite 'All tests' started at 2026-10-23 15:45:59.857
+Test Suite 'debug.xctest' started at 2026-10-23 15:45:59.859
+Test Suite 'GameEngineTests' started at 2026-10-23 15:45:59.859
+Test Case 'GameEngineTests.testBoardSacksManagerAndJobOffersFollow' started at 2026-10-23 15:45:59.859
+Test Case 'GameEngineTests.testBoardSacksManagerAndJobOffersFollow' passed (2.117 seconds)
+Test Case 'GameEngineTests.testBoardWarnsBeforeSacking' started at 2026-10-23 15:46:01.975
+Test Case 'GameEngineTests.testBoardWarnsBeforeSacking' passed (1.63 seconds)
+Test Case 'GameEngineTests.testBonusAddsTransferMoney' started at 2026-10-23 15:46:03.606
+Test Case 'GameEngineTests.testBonusAddsTransferMoney' passed (0.231 seconds)
+Test Case 'GameEngineTests.testCardsAndSuspensions' started at 2026-10-23 15:46:03.837
+Test Case 'GameEngineTests.testCardsAndSuspensions' passed (3.147 seconds)
+Test Case 'GameEngineTests.testClubWalksAwayAfterRunningOutOfPatience' started at 2026-10-23 15:46:06.983
+Test Case 'GameEngineTests.testClubWalksAwayAfterRunningOutOfPatience' passed (0.36 seconds)
+Test Case 'GameEngineTests.testEightLeagueQualification' started at 2026-10-23 15:46:07.343
+Test Case 'GameEngineTests.testEightLeagueQualification' passed (0.124 seconds)
+Test Case 'GameEngineTests.testEveryClubPlaysOncePerMatchday' started at 2026-10-23 15:46:07.466
+Test Case 'GameEngineTests.testEveryClubPlaysOncePerMatchday' passed (0.129 seconds)
+Test Case 'GameEngineTests.testEveryFormationHasElevenSlots' started at 2026-10-23 15:46:07.596
+Test Case 'GameEngineTests.testEveryFormationHasElevenSlots' passed (0.0 seconds)
+Test Case 'GameEngineTests.testExpiredContractsCreateFreeAgentsAndReminders' started at 2026-10-23 15:46:07.596
+Test Case 'GameEngineTests.testExpiredContractsCreateFreeAgentsAndReminders' passed (9.203 seconds)
+Test Case 'GameEngineTests.testFacilityUpgradeCompletes' started at 2026-10-23 15:46:16.799
+Test Case 'GameEngineTests.testFacilityUpgradeCompletes' passed (2.969 seconds)
+Test Case 'GameEngineTests.testFeeNegotiationAndSigning' started at 2026-10-23 15:46:19.768
+Test Case 'GameEngineTests.testFeeNegotiationAndSigning' passed (0.209 seconds)
+Test Case 'GameEngineTests.testFreeAgentSignsWithoutFeeForHigherWages' started at 2026-10-23 15:46:19.978
+Test Case 'GameEngineTests.testFreeAgentSignsWithoutFeeForHigherWages' passed (1.126 seconds)
+Test Case 'GameEngineTests.testFullSeasonWithEuropeanCups' started at 2026-10-23 15:46:21.103
+Test Case 'GameEngineTests.testFullSeasonWithEuropeanCups' passed (9.187 seconds)
+Test Case 'GameEngineTests.testGeneratedOverallsLookRealistic' started at 2026-10-23 15:46:30.291
+Test Case 'GameEngineTests.testGeneratedOverallsLookRealistic' passed (0.156 seconds)
+Test Case 'GameEngineTests.testIncomingOfferCounter' started at 2026-10-23 15:46:30.447
+Test Case 'GameEngineTests.testIncomingOfferCounter' passed (0.121 seconds)
+Test Case 'GameEngineTests.testInjuredStarterIsReplacedAtKickOff' started at 2026-10-23 15:46:30.568
+Test Case 'GameEngineTests.testInjuredStarterIsReplacedAtKickOff' passed (0.118 seconds)
+Test Case 'GameEngineTests.testLeaderboardsCountLeagueGoals' started at 2026-10-23 15:46:30.686
+Test Case 'GameEngineTests.testLeaderboardsCountLeagueGoals' passed (1.837 seconds)
+Test Case 'GameEngineTests.testMovingBudgetBetweenTransfersAndWages' started at 2026-10-23 15:46:32.523
+Test Case 'GameEngineTests.testMovingBudgetBetweenTransfersAndWages' passed (0.116 seconds)
+Test Case 'GameEngineTests.testNegotiationIsFlexible' started at 2026-10-23 15:46:32.638
+Test Case 'GameEngineTests.testNegotiationIsFlexible' passed (0.224 seconds)
+Test Case 'GameEngineTests.testOffersArriveDuringTheWindow' started at 2026-10-23 15:46:32.863
+Test Case 'GameEngineTests.testOffersArriveDuringTheWindow' passed (0.884 seconds)
+Test Case 'GameEngineTests.testOldPlayerRecordsLoad' started at 2026-10-23 15:46:33.747
+Test Case 'GameEngineTests.testOldPlayerRecordsLoad' passed (0.116 seconds)
+Test Case 'GameEngineTests.testOldSaveGetsFreeAgents' started at 2026-10-23 15:46:33.863
+Test Case 'GameEngineTests.testOldSaveGetsFreeAgents' passed (1.32 seconds)
+Test Case 'GameEngineTests.testQualificationUsesLeaguePlaces' started at 2026-10-23 15:46:35.184
+Test Case 'GameEngineTests.testQualificationUsesLeaguePlaces' passed (0.001 seconds)
+Test Case 'GameEngineTests.testSaveRoundTrip' started at 2026-10-23 15:46:35.184
+Test Case 'GameEngineTests.testSaveRoundTrip' passed (0.779 seconds)
+Test Case 'GameEngineTests.testScoutFindsCheaperPlayers' started at 2026-10-23 15:46:35.964
+Test Case 'GameEngineTests.testScoutFindsCheaperPlayers' passed (0.586 seconds)
+Test Case 'GameEngineTests.testStrongerTeamsWinMoreOften' started at 2026-10-23 15:46:36.550
+Test Case 'GameEngineTests.testStrongerTeamsWinMoreOften' passed (0.185 seconds)
+Test Case 'GameEngineTests.testSuspensionIsServed' started at 2026-10-23 15:46:36.735
+Test Case 'GameEngineTests.testSuspensionIsServed' passed (0.448 seconds)
+Test Case 'GameEngineTests.testTiredPlayersAreWorse' started at 2026-10-23 15:46:37.184
+Test Case 'GameEngineTests.testTiredPlayersAreWorse' passed (0.111 seconds)
+Test Case 'GameEngineTests.testUserLineupEditing' started at 2026-10-23 15:46:37.295
+Test Case 'GameEngineTests.testUserLineupEditing' passed (0.214 seconds)
+Test Case 'GameEngineTests.testVersionTwoSaveStillLoads' started at 2026-10-23 15:46:37.509
+Test Case 'GameEngineTests.testVersionTwoSaveStillLoads' passed (1.67 seconds)
+Test Case 'GameEngineTests.testWinterWindowAndAnnouncements' started at 2026-10-23 15:46:39.179
+Test Case 'GameEngineTests.testWinterWindowAndAnnouncements' passed (4.299 seconds)
+Test Case 'GameEngineTests.testWorldGeneration' started at 2026-10-23 15:46:43.478
+Test Case 'GameEngineTests.testWorldGeneration' passed (0.114 seconds)
+Test Suite 'GameEngineTests' passed at 2026-10-23 15:46:43.592
+	 Executed 32 tests, with 0 failures (0 unexpected) in 43.733 (43.733) seconds
+Test Suite 'debug.xctest' passed at 2026-10-23 15:46:43.592
+	 Executed 32 tests, with 0 failures (0 unexpected) in 43.733 (43.733) seconds
+Test Suite 'All tests' passed at 2026-10-23 15:46:43.592
+	 Executed 32 tests, with 0 failures (0 unexpected) in 43.733 (43.733) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.0.3 (18c42c19cac3faf)
+✔ Test run with 0 tests passed after 0.001 seconds.
