@@ -53,6 +53,10 @@ struct PlayerDetailView: View {
                 Text("\(Flags.emoji(player.nationality)) \(Flags.countryName(player.nationality)) · \(L("format.age", String(player.age(in: career.season))))")
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
+                if let report = career.scoutReport(for: player.id), player.clubID != career.userClubID {
+                    Chip(text: L("scout.discountChip", String(Int((report.feeDiscount * 100).rounded()))),
+                         icon: "binoculars.fill", color: Theme.positive)
+                }
                 if player.isFreeAgent {
                     Chip(text: L("freeAgent.badge"), icon: "figure.walk", color: Theme.positive)
                 } else if player.isRetired {

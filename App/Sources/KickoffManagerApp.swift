@@ -90,6 +90,7 @@ struct PlayerLink: Hashable { let id: UUID }
 struct MatchLink: Hashable { let fixtureID: UUID }
 struct InboxLink: Hashable {}
 struct ContractsLink: Hashable {}
+struct ScoutLink: Hashable {}
 
 extension View {
     func gameDestinations() -> some View {
@@ -97,5 +98,6 @@ extension View {
             .navigationDestination(for: MatchLink.self) { MatchReportView(fixtureID: $0.fixtureID) }
             .navigationDestination(for: InboxLink.self) { _ in InboxView() }
             .navigationDestination(for: ContractsLink.self) { _ in ContractsView() }
+            .navigationDestination(for: ScoutLink.self) { _ in ScoutView() }
     }
 }

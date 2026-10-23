@@ -70,13 +70,21 @@ struct TransfersView: View {
                 StatTile(title: L("transfers.budget"), value: Fmt.money(club.finances.transferBudget))
                 StatTile(title: L("transfers.wageRoom"), value: Fmt.wage(wageRoom))
             }
-            Button {
-                showBudget = true
-            } label: {
-                Label(L("budget.adjust"), systemImage: "arrow.left.arrow.right.circle.fill")
-                    .font(.caption.weight(.bold))
+            HStack(spacing: 8) {
+                Button {
+                    showBudget = true
+                } label: {
+                    Label(L("budget.adjust"), systemImage: "arrow.left.arrow.right.circle.fill")
+                        .font(.caption.weight(.bold))
+                }
+                .buttonStyle(OutlineButtonStyle(color: Theme.goldLight))
+                NavigationLink(value: ScoutLink()) {
+                    Label(career.scoutedPlayers.isEmpty ? L("scout.title") : L("scout.titleCount", String(career.scoutedPlayers.count)),
+                          systemImage: "binoculars.fill")
+                        .font(.caption.weight(.bold))
+                }
+                .buttonStyle(OutlineButtonStyle(color: Theme.positive))
             }
-            .buttonStyle(OutlineButtonStyle(color: Theme.goldLight))
             HStack(spacing: 6) {
                 Image(systemName: career.isTransferWindowOpen ? "lock.open.fill" : "lock.fill")
                 Text(career.isTransferWindowOpen ? L("transfers.windowOpen") : L("transfers.windowClosed"))
@@ -143,7 +151,8 @@ struct TransfersView: View {
                             player: player,
                             season: career.season,
                             clubName: player.clubID.flatMap { career.club($0)?.shortName },
-                            trailing: Fmt.money(player.marketValue(season: career.season))
+                            trailing: Fmt.money(player.marketValue(season: career.season)),
+                            scouted: career.scoutReport(for: player.id) != nil
                         )
                     }
                     .buttonStyle(.plain)

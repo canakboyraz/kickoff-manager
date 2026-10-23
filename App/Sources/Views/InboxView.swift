@@ -208,6 +208,19 @@ enum MessageText {
                 title: L(final ? "msg.contracts.finalTitle" : "msg.contracts.title", String(playerIDs.count)),
                 body: L("msg.contracts.body", names)
             )
+        case .scoutReport(let playerIDs):
+            let names = playerIDs.compactMap { career.player($0)?.shortName }.joined(separator: ", ")
+            return Content(
+                icon: "binoculars.fill", color: Theme.goldLight,
+                title: L("msg.scout.title"),
+                body: playerIDs.isEmpty ? L("msg.scout.none") : L("msg.scout.body", String(playerIDs.count), names)
+            )
+        case .bonus(let amount, let source):
+            return Content(
+                icon: source == .penalty ? "soccerball" : "gift.fill", color: Theme.positive,
+                title: L("msg.bonus.title"),
+                body: L(source == .penalty ? "msg.bonus.penalty" : "msg.bonus.ad", Fmt.money(amount))
+            )
         case .suspension(let playerID, let matches, let reason):
             return Content(
                 icon: "rectangle.portrait.fill", color: Theme.negative,

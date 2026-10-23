@@ -47,6 +47,7 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                RewardsCard()
                 ManagerCard(career: career)
                 topPerformers(career)
                 inboxPreview(career)

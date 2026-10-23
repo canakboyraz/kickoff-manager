@@ -7,6 +7,7 @@ import GoogleMobileAds
 /// AdMob account before releasing on the App Store.
 enum AdConfig {
     static let interstitialUnitID = "ca-app-pub-3940256099942544/4411468910"
+    static let rewardedUnitID = "ca-app-pub-3940256099942544/1712485313"
     /// An interstitial is shown after this many played weeks.
     static let weeksPerAd = 5
 }
@@ -17,20 +18,54 @@ final class AdManager: NSObject, GADFullScreenContentDelegate {
     static let shared = AdManager()
 
     private var interstitial: GADInterstitialAd?
+    private var rewarded: GADRewardedAd?
+    private var isLoadingRewarded = false
     private var isLoading = false
     private var started = false
     private let counterKey = "weeksSinceLastAd"
 
     /// Asks for tracking permission (iOS shows it once), then starts the SDK and preloads an ad.
+    /// Rewarded ads are optional, so the SDK starts even for players who removed ads.
     func start() {
-        guard !started, !PurchaseManager.adsRemovedCached else { return }
+        guard !started else { return }
         started = true
         ATTrackingManager.requestTrackingAuthorization { _ in
             Task { @MainActor in
                 GADMobileAds.sharedInstance().start(completionHandler: nil)
                 self.load()
+                self.loadRewarded()
             }
         }
+    }
+
+    var isRewardedReady: Bool { rewarded != nil }
+
+    func loadRewarded() {
+        guard rewarded == nil, !isLoadingRewarded else { return }
+        isLoadingRewarded = true
+        GADRewardedAd.load(withAdUnitID: AdConfig.rewardedUnitID, request: GADRequest()) { [weak self] ad, _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.isLoadingRewarded = false
+                self.rewarded = ad
+                self.rewarded?.fullScreenContentDelegate = self
+            }
+        }
+    }
+
+    /// Shows a rewarded ad. `onReward` runs only if the player watched it to the end.
+    /// Returns false when no ad is loaded yet.
+    @discardableResult
+    func showRewarded(onReward: @escaping @MainActor () -> Void) -> Bool {
+        guard let ad = rewarded, let root = Self.topViewController() else {
+            loadRewarded()
+            return false
+        }
+        rewarded = nil
+        ad.present(fromRootViewController: root) {
+            Task { @MainActor in onReward() }
+        }
+        return true
     }
 
     private func load() {
@@ -70,16 +105,27 @@ final class AdManager: NSObject, GADFullScreenContentDelegate {
     }
 
     nonisolated func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+        let isRewarded = ad is GADRewardedAd
         Task { @MainActor in
-            self.interstitial = nil
-            self.load()
+            if isRewarded {
+                self.loadRewarded()
+            } else {
+                self.interstitial = nil
+                self.load()
+            }
         }
     }
 
     nonisolated func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+        let isRewarded = ad is GADRewardedAd
         Task { @MainActor in
-            self.interstitial = nil
-            self.load()
+            if isRewarded {
+                self.rewarded = nil
+                self.loadRewarded()
+            } else {
+                self.interstitial = nil
+                self.load()
+            }
         }
     }
 

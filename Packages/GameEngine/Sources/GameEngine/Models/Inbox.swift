@@ -41,6 +41,7 @@ public enum InboxKind: Codable, Hashable, Sendable {
 
 public enum BonusSource: String, Codable, Hashable, Sendable {
     case rewardedAd, penalty
+}
 
 public enum SuspensionReason: String, Codable, Hashable, Sendable {
     case redCard, secondYellow, yellowCards

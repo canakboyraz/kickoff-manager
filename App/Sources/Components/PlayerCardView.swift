@@ -127,6 +127,8 @@ struct PlayerRow: View {
     let season: Int
     var clubName: String?
     var trailing: String?
+    /// Found by the club's scouts (cheaper to sign).
+    var scouted = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -140,6 +142,9 @@ struct PlayerRow: View {
                         .lineLimit(1)
                     if player.isTransferListed {
                         Image(systemName: "tag.fill").font(.caption2).foregroundStyle(Theme.warning)
+                    }
+                    if scouted {
+                        Image(systemName: "binoculars.fill").font(.caption2).foregroundStyle(Theme.positive)
                     }
                 }
                 Text([player.position.shortLabel, L("format.age", String(player.age(in: season))), clubName]
