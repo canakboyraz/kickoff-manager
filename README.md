@@ -3,7 +3,7 @@
 FC kariyer modu sadeliğinde, kurgusal takımlarla oynanan bir iOS futbol menajerlik oyunu.
 SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 
-## Neler var (v0.4)
+## Neler var (v0.5)
 
 - **5 kurgusal lig**: Hilal Lig (TR), Albion Premier (EN), Liga Ibérica (ES), Bundesklasse (DE), Serie Azzurra (IT). Her ligde 18 kulüp, kulüp başına 24 oyuncu.
 - **Kadro ve diziliş**: 10 diziliş (4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2, 4-1-4-1, 4-3-1-2, 4-3-2-1, 3-4-3, 4-5-1). İlk 11, 7 yedek ve kadro dışı aynı ekranda; iki oyuncuya sırayla dokunarak yer değiştirilir. Otomatik diz butonu.
@@ -18,6 +18,11 @@ SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 - **Transfer dönemleri**: yaz (ilk 4 hafta) ve devre arası (4 hafta). Açılış ve kapanışta mesaj gelir, ana sayfada geri sayım görünür.
 - **Sezon döngüsü**: ödül parası, itibar değişimi, emeklilikler, sözleşme bitişleri, altyapıdan genç oyuncular, yeni fikstür ve kupa kuraları.
 - **Kulüp yönetimi**: antrenman, altyapı, sağlık tesisi yükseltmeleri; stadyum genişletme; bilet fiyatı; gelir ve giderler.
+- **Serbest oyuncular**: sözleşmesi biten ya da serbest bırakılan oyuncular havuza düşer. Bonservis ödenmez, transfer dönemi dışında da imzalanabilir; karşılığında yaklaşık %40 daha yüksek maaş isterler. Yapay zekâ kulüpleri de bu havuzdan oyuncu alır.
+- **Sözleşme takibi**: sözleşmesi bu sezon biten oyuncular için Sözleşmeler ekranı, ana sayfa ve kadro uyarısı, kartta simge, sezon içinde 4 kez hatırlatma mesajı.
+- **Gol ve asist krallığı**: Lig › İstatistik sekmesinde her lig için ilk 20.
+- **Bütçe aktarma**: transfer bütçesi ile haftalık maaş bütçesi arasında aktarma (haftalık €1 maaş = €40 transfer bütçesi).
+- **Reklam ve satın alma**: her 5 oynanan haftada bir geçiş reklamı (AdMob). "Reklamları kaldır" tek seferlik satın alımı (StoreKit 2) ve geri yükleme.
 - **Türkçe + İngilizce** arayüz, otomatik kayıt.
 
 ## Proje yapısı
@@ -92,6 +97,16 @@ iPhone'daki TestFlight uygulamasından oyunu yükle.
 
 - **Engine tests**: her push'ta oyun motorunu Linux'ta derleyip testleri çalıştırır.
 - **App build check**: `main`'e her push'ta uygulamayı imzasız olarak simülatör için derler. Derleme hatalarını Codemagic'e gitmeden görmek için.
+
+## Reklam ve satın alma kurulumu
+
+Şu an Google'ın **test** reklam kimlikleri kullanılıyor (test reklamı gösterir, para kazandırmaz).
+
+1. AdMob hesabı aç, iOS uygulamasını ekle. **Uygulama kimliğini** (`ca-app-pub-…~…`) `project.yml` içindeki `GADApplicationIdentifier` yerine, **geçiş reklamı birim kimliğini** (`ca-app-pub-…/…`) `App/Sources/Monetization/AdManager.swift` içindeki `interstitialUnitID` yerine yaz.
+2. AdMob'da Gizlilik ve mesajlaşma bölümünden GDPR (AB) onay mesajını oluştur.
+3. App Store Connect › Sözleşmeler: **Ücretli Uygulamalar** sözleşmesini, banka ve vergi bilgilerini tamamla.
+4. App Store Connect › uygulama › Uygulama İçi Satın Almalar: **Tüketilemez** ürün, ürün kimliği `com.canakboyraz.kickoffmanager.removeads`.
+5. App Store Connect › Uygulama Gizliliği: reklam için cihaz kimliği ve kullanım verisi toplandığını işaretle.
 
 ## Notlar
 

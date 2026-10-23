@@ -8,7 +8,7 @@ import StoreKit
 @Observable
 final class PurchaseManager {
     static let removeAdsProductID = "com.canakboyraz.kickoffmanager.removeads"
-    private static let cacheKey = "adsRemoved"
+    private nonisolated static let cacheKey = "adsRemoved"
 
     /// Read from anywhere (the ad manager checks this before every ad).
     nonisolated static var adsRemovedCached: Bool {
