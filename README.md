@@ -102,9 +102,9 @@ iPhone'daki TestFlight uygulamasından oyunu yükle.
 
 ## Reklam ve satın alma kurulumu
 
-Şu an Google'ın **test** reklam kimlikleri kullanılıyor (test reklamı gösterir, para kazandırmaz).
+AdMob uygulaması ve iki reklam birimi (geçiş, ödüllü) oluşturuldu, kimlikler koda eklendi. TestFlight ve debug derlemeleri Google'ın test reklamlarını, App Store sürümü gerçek reklamları gösterir.
 
-1. AdMob hesabı aç, iOS uygulamasını ekle. **Uygulama kimliğini** (`ca-app-pub-…~…`) `project.yml` içindeki `GADApplicationIdentifier` yerine, **geçiş** ve **ödüllü** reklam birim kimliklerini (`ca-app-pub-…/…`) `App/Sources/Monetization/AdManager.swift` içindeki `interstitialUnitID` ve `rewardedUnitID` yerine yaz.
+1. (Tamamlandı) AdMob uygulaması `ca-app-pub-7480304536097194~7521404892`, geçiş `…/6775385155`, ödüllü `…/9955996543`.
 2. AdMob'da Gizlilik ve mesajlaşma bölümünden GDPR (AB) onay mesajını oluştur.
 3. App Store Connect › Sözleşmeler: **Ücretli Uygulamalar** sözleşmesini, banka ve vergi bilgilerini tamamla.
 4. App Store Connect › uygulama › Uygulama İçi Satın Almalar: **Tüketilemez** ürün, ürün kimliği `com.canakboyraz.kickoffmanager.removeads`.

@@ -2,12 +2,25 @@ import UIKit
 import AppTrackingTransparency
 import GoogleMobileAds
 
-/// Ad unit IDs. These are Google's public TEST IDs, which always serve test ads.
-/// Replace them (and GADApplicationIdentifier in project.yml) with the IDs from your
-/// AdMob account before releasing on the App Store.
+/// Ad unit IDs from the Kickoff Manager app in AdMob.
+/// TestFlight and debug builds use Google's public test units, so testers never click
+/// real ads (AdMob can suspend accounts for that). App Store builds use the real ones.
 enum AdConfig {
-    static let interstitialUnitID = "ca-app-pub-3940256099942544/4411468910"
-    static let rewardedUnitID = "ca-app-pub-3940256099942544/1712485313"
+    /// TestFlight installs carry a sandbox receipt.
+    static let useTestAds: Bool = {
+        #if DEBUG
+        return true
+        #else
+        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        #endif
+    }()
+
+    static let interstitialUnitID = useTestAds
+        ? "ca-app-pub-3940256099942544/4411468910"
+        : "ca-app-pub-7480304536097194/6775385155"
+    static let rewardedUnitID = useTestAds
+        ? "ca-app-pub-3940256099942544/1712485313"
+        : "ca-app-pub-7480304536097194/9955996543"
     /// An interstitial is shown after this many played weeks.
     static let weeksPerAd = 5
 }

@@ -47,8 +47,8 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIUserInterfaceStyle: Dark
         ITSAppUsesNonExemptEncryption: false
-        # AdMob. This is Google's public TEST app ID; replace it with your own AdMob app ID.
-        GADApplicationIdentifier: ca-app-pub-3940256099942544~1458002511
+        # AdMob app ID (Kickoff Manager, iOS).
+        GADApplicationIdentifier: ca-app-pub-7480304536097194~7521404892
         NSUserTrackingUsageDescription: Your data is used to show you more relevant ads. You can still play for free if you decline.
         SKAdNetworkItems:
           - SKAdNetworkIdentifier: cstr6suwn9.skadnetwork
