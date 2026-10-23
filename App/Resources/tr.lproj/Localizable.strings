@@ -310,6 +310,7 @@
 "pos.long.GK" = "Kaleci";
 "pos.long.ST" = "Santrfor";
 "pos.long.W" = "Kanat";
+"privacy.adChoices" = "Reklam gizlilik tercihleri";
 "renew.current" = "Şu an %1$@, bitiş %2$@";
 "renew.result.ok" = "Sözleşme %@ sezonuna kadar uzatıldı.";
 "renew.submit" = "Yeni sözleşme öner";

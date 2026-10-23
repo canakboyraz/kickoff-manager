@@ -4,7 +4,7 @@ import GameEngine
 /// Free transfer money: a rewarded ad every hour and a penalty challenge once a day.
 struct RewardsCard: View {
     @Environment(GameStore.self) private var store
-    @State private var showPenalty = false
+    @State private var showPenalty = GameStore.launchValue("-showPenalty") == "1"
     @State private var notice: String?
 
     var body: some View {

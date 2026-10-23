@@ -4,7 +4,7 @@ name: Engine tests
 
 on:
   push:
-    branches-ignore: ['ci-logs-*']
+    branches-ignore: ['ci-logs-*', 'ci-screenshots']
   pull_request:
 
 permissions:

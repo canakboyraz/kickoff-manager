@@ -310,6 +310,7 @@
 "pos.long.GK" = "Goalkeeper";
 "pos.long.ST" = "Striker";
 "pos.long.W" = "Winger";
+"privacy.adChoices" = "Ad privacy choices";
 "renew.current" = "Now %1$@ until %2$@";
 "renew.result.ok" = "Contract renewed until %@.";
 "renew.submit" = "Offer new contract";

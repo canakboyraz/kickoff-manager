@@ -27,7 +27,14 @@ struct ClubView: View {
                     }
                     financesCard(career)
                     historyCard(career)
-                    storeCard()
+                    if purchases.product != nil || purchases.adsRemoved {
+                        storeCard()
+                    }
+                    if AdManager.shared.privacyOptionsRequired {
+                        Button(L("privacy.adChoices")) { AdManager.shared.showPrivacyOptions() }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.textMuted)
+                    }
                     Button(L("club.newCareer"), role: .destructive) { confirmReset = true }
                         .buttonStyle(OutlineButtonStyle(color: Theme.negative))
                         .padding(.top, 10)

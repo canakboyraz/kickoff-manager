@@ -5,7 +5,7 @@ struct LeagueView: View {
     @Environment(GameStore.self) private var store
     @State private var leagueID: UUID?
     @State private var matchday: Int?
-    @State private var mode: Mode = .league
+    @State private var mode: Mode = GameStore.launchValue("-leagueMode") == "stats" ? .stats : .league
     @State private var statKind: LeaderboardKind = .goals
 
     enum Mode: Hashable {

@@ -1,6 +1,7 @@
 import UIKit
 import AppTrackingTransparency
 import GoogleMobileAds
+import UserMessagingPlatform
 
 /// Ad unit IDs from the Kickoff Manager app in AdMob.
 /// TestFlight and debug builds use Google's public test units, so testers never click
@@ -38,17 +39,40 @@ final class AdManager: NSObject, GADFullScreenContentDelegate {
     private let counterKey = "weeksSinceLastAd"
 
     /// Asks for tracking permission (iOS shows it once), then starts the SDK and preloads an ad.
-    /// Rewarded ads are optional, so the SDK starts even for players who removed ads.
+    /// Order matters: first Google's consent form (shown only in the EEA, UK and Switzerland),
+    /// then Apple's tracking prompt, then the ads SDK. Rewarded ads are optional, so the SDK
+    /// starts even for players who removed ads.
     func start() {
-        guard !started else { return }
+        guard !started, !GameStore.isScreenshotMode else { return }
         started = true
+        UMPConsentInformation.sharedInstance.requestConsentInfoUpdate(with: UMPRequestParameters()) { _ in
+            Task { @MainActor in
+                UMPConsentForm.loadAndPresentIfRequired(from: Self.topViewController()) { _ in
+                    Task { @MainActor in self.requestTrackingAndStartAds() }
+                }
+            }
+        }
+    }
+
+    private func requestTrackingAndStartAds() {
         ATTrackingManager.requestTrackingAuthorization { _ in
             Task { @MainActor in
+                // Without consent (where it's required) no ads can be requested.
+                guard UMPConsentInformation.sharedInstance.canRequestAds else { return }
                 GADMobileAds.sharedInstance().start(completionHandler: nil)
                 self.load()
                 self.loadRewarded()
             }
         }
+    }
+
+    /// Players in the EEA can change their ad consent from settings.
+    var privacyOptionsRequired: Bool {
+        UMPConsentInformation.sharedInstance.privacyOptionsRequirementStatus == .required
+    }
+
+    func showPrivacyOptions() {
+        UMPConsentForm.presentPrivacyOptionsForm(from: Self.topViewController()) { _ in }
     }
 
     var isRewardedReady: Bool { rewarded != nil }

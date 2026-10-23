@@ -1,0 +1,76 @@
+# Takes App Store screenshots on an iPhone 16 Pro Max simulator (6.9" display) in Turkish
+# and English, using the app's demo career (-demoCareer), and pushes them to the
+# ci-screenshots branch. Runs on pushes to the store-screenshots branch or by hand.
+name: App Store screenshots
+
+on:
+  push:
+    branches: ['store-screenshots']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build for simulator
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project KickoffManager.xcodeproj \
+            -scheme KickoffManager \
+            -configuration Release \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || (tail -50 build.log; exit 1)
+      - name: Capture screenshots
+        shell: bash
+        run: |
+          set -x
+          APP=$(find build/Build/Products -name "KickoffManager.app" -maxdepth 3 | head -1)
+          DEVICE=$(xcrun simctl list devices available | grep "iPhone 16 Pro Max" | head -1 | grep -oE '[0-9A-F-]{36}')
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+          xcrun simctl install "$DEVICE" "$APP"
+          BUNDLE=com.canakboyraz.kickoffmanager
+          mkdir -p shots
+          shoot() {
+            lang=$1; name=$2; shift 2
+            xcrun simctl terminate "$DEVICE" $BUNDLE 2>/dev/null || true
+            xcrun simctl launch "$DEVICE" $BUNDLE -AppleLanguages "($lang)" -AppleLocale "$lang" -demoCareer "$@"
+            sleep 25
+            xcrun simctl io "$DEVICE" screenshot "shots/$lang-$name.png"
+          }
+          for lang in tr en; do
+            shoot $lang 1-home -screenshotTab home
+            shoot $lang 2-squad -screenshotTab squad
+            shoot $lang 3-transfers -screenshotTab transfers
+            shoot $lang 4-league -screenshotTab league
+            shoot $lang 5-stats -screenshotTab league -leagueMode stats
+            shoot $lang 6-club -screenshotTab club
+            shoot $lang 7-penalty -screenshotTab home -showPenalty 1
+          done
+          ls -la shots
+      - name: Publish screenshots
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p /tmp/out && cp -R shots/. /tmp/out/ 2>/dev/null || true
+          cp build.log /tmp/out/build.log 2>/dev/null || true
+          cd /tmp/out
+          git init -q
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git checkout -q -b ci-screenshots
+          git add -A
+          git commit -qm "screenshots for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ci-screenshots

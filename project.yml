@@ -14,6 +14,9 @@ packages:
   GoogleMobileAds:
     url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
     majorVersion: 11.0.0
+  GoogleUserMessagingPlatform:
+    url: https://github.com/googleads/swift-package-manager-google-user-messaging-platform.git
+    majorVersion: 2.0.0
 
 settings:
   base:
@@ -31,6 +34,7 @@ targets:
     dependencies:
       - package: GameEngine
       - package: GoogleMobileAds
+      - package: GoogleUserMessagingPlatform
       - sdk: StoreKit.framework
       - sdk: AppTrackingTransparency.framework
     info:

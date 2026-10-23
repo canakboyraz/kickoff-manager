@@ -22,6 +22,30 @@ final class GameStore {
 
     init() {
         load()
+        if Self.isScreenshotMode { setUpScreenshotCareer() }
+    }
+
+    // MARK: - App Store screenshots
+
+    /// Launched with `-demoCareer` by the screenshot workflow: a fixed career a few weeks in.
+    nonisolated static let isScreenshotMode = ProcessInfo.processInfo.arguments.contains("-demoCareer")
+
+    /// Value after a launch argument, e.g. `-screenshotTab squad`.
+    nonisolated static func launchValue(_ key: String) -> String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let index = args.firstIndex(of: key), index + 1 < args.count else { return nil }
+        return args[index + 1]
+    }
+
+    private func setUpScreenshotCareer() {
+        var world = Career.generate(seed: 2026)
+        world.chooseClub(world.leagues[0].clubIDs[0])
+        _ = world.startScoutMission(ScoutBrief(maxAge: 23, minPotential: 75))
+        for _ in 0..<9 { world.advanceWeek() }
+        career = world
+        if let tab = Self.launchValue("-screenshotTab").flatMap(AppTab.init(rawValue:)) {
+            selectedTab = tab
+        }
     }
 
     // MARK: - Lifecycle
@@ -106,6 +130,6 @@ struct PresentedReport: Identifiable {
     let report: WeekReport
 }
 
-enum AppTab: Hashable {
+enum AppTab: String, Hashable {
     case home, squad, transfers, club, league
 }
