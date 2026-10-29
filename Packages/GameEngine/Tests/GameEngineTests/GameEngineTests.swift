@@ -608,4 +608,39 @@ final class GameEngineTests: XCTestCase {
         XCTAssertEqual(Set(career.leagues.map(\.countryCode)), ["TR", "EN", "ES", "DE", "IT", "FR", "PT", "NL"])
         XCTAssertEqual(career.cups.map(\.clubIDs.count), [16, 16])
     }
+
+    // MARK: - 1.1: reward points and pack players
+
+    func testMatchesAndSeasonsEarnPoints() {
+        var career = Career.generate(seed: 81)
+        career.chooseClub(career.leagues[0].clubIDs[0])
+        for _ in 0..<career.matchdayCount {
+            career.manager.boardConfidence = 100
+            career.advanceWeek()
+        }
+        XCTAssertGreaterThan(career.lifetimeRewardPoints, 100)
+        XCTAssertTrue(career.rewardLog.contains { $0.reason == .seasonFinish || $0.reason == .leagueTitle })
+        let claimed = career.claimRewardPoints()
+        XCTAssertEqual(claimed, career.lifetimeRewardPoints)
+        XCTAssertEqual(career.claimRewardPoints(), 0)
+    }
+
+    func testPackPlayersJoinTheSquad() {
+        var career = Career.generate(seed: 82)
+        career.chooseClub(career.leagues[2].clubIDs[8])
+        let average = Career.averageOverall(reputation: career.userClub.reputation)
+        let before = career.userSquad.count
+        let legend = career.addPackPlayer(tier: .legend)!
+        XCTAssertEqual(career.userSquad.count, before + 1)
+        XCTAssertEqual(legend.clubID, career.userClubID)
+        XCTAssertGreaterThanOrEqual(Double(legend.overall), average + 6)
+        let prospect = career.addPackPlayer(tier: .prospect, position: .striker)!
+        XCTAssertEqual(prospect.position, .striker)
+        XCTAssertLessThanOrEqual(prospect.age(in: career.season), 19)
+        XCTAssertGreaterThan(prospect.potential, prospect.overall)
+        while career.userClub.playerIDs.count < Career.maxSquadSize {
+            _ = career.addPackPlayer(tier: .solid)
+        }
+        XCTAssertNil(career.addPackPlayer(tier: .solid))
+    }
 }

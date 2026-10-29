@@ -339,6 +339,7 @@ extension Career {
             return
         }
         offers[index].status = .accepted
+        rewardSale(fee: offer.fee)
 
         clubs[userClubID]?.finances.balance += offer.fee
         clubs[userClubID]?.finances.transferBudget += offer.fee

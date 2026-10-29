@@ -36,6 +36,7 @@ extension Career {
     /// After every league game: wins help, losses hurt, more so against weaker opponents.
     mutating func updateBoardAfterMatch(scored: Int, conceded: Int, opponentID: UUID) {
         guard !isUnemployed else { return }
+        rewardMatch(scored: scored, conceded: conceded)
         // Positive when the opponent is expected to finish higher than us.
         let gap = Double(expectedPosition(of: userClubID) - expectedPosition(of: opponentID)) / 6
         var delta: Double
@@ -170,6 +171,7 @@ extension Career {
         guard !isUnemployed else { return }
         let difference = expected - position
         manager.seasonsManaged += 1
+        rewardSeason(expected: expected, position: position)
         var reputationChange = Int((Double(difference) * 1.5).rounded()).clamped(to: -6...8)
         if position == 1 {
             reputationChange += 6
@@ -190,6 +192,7 @@ extension Career {
     /// European runs impress the board and the wider football world.
     mutating func recordCupResult(_ kind: CompetitionKind, stage: CupStage, won: Bool) {
         guard !isUnemployed else { return }
+        rewardCup(kind, won: won)
         if won {
             manager.trophies += 1
             manager.reputation = min(100, manager.reputation + (kind == .eliteCup ? 10 : 5))

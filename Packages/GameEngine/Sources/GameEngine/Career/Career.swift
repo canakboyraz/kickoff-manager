@@ -31,6 +31,10 @@ public struct Career: Codable, Sendable {
     /// Scouts currently searching, and the players they found.
     public internal(set) var scoutMissions: [ScoutMission] = []
     public internal(set) var scoutReports: [ScoutReport] = []
+    /// Kickoff Points earned but not yet moved to the app's wallet, and the running total.
+    public internal(set) var pendingRewardPoints: Int = 0
+    public internal(set) var lifetimeRewardPoints: Int = 0
+    public internal(set) var rewardLog: [RewardEvent] = []
     var rng: SeededRandom
 }
 
@@ -67,6 +71,10 @@ extension Career {
         // Added in version 5.
         scoutMissions = try container.decodeIfPresent([ScoutMission].self, forKey: .scoutMissions) ?? []
         scoutReports = try container.decodeIfPresent([ScoutReport].self, forKey: .scoutReports) ?? []
+        // Added in 1.1.
+        pendingRewardPoints = try container.decodeIfPresent(Int.self, forKey: .pendingRewardPoints) ?? 0
+        lifetimeRewardPoints = try container.decodeIfPresent(Int.self, forKey: .lifetimeRewardPoints) ?? 0
+        rewardLog = try container.decodeIfPresent([RewardEvent].self, forKey: .rewardLog) ?? []
         // Version 4 added free agents: give older saves a starting pool.
         let savedVersion = try container.decodeIfPresent(Int.self, forKey: .version) ?? 2
         if savedVersion < 4 && freeAgentCount < 40 {

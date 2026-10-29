@@ -14,6 +14,11 @@ final class GameStore {
     var presentedReport: PresentedReport?
     /// Selected tab, so screens can send the user somewhere (e.g. to fix the team sheet).
     var selectedTab: AppTab = .home
+    /// Kickoff Points wallet and cosmetics (shared by every career).
+    let profile = ProfileStore()
+    private var seenRewardIDs = Set<UUID>()
+    /// Which part of the profile tab is showing (lets Home jump straight to the store).
+    var profileSection: ProfileSection = .profile
 
     private let saveURL: URL = {
         let folder = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -23,6 +28,7 @@ final class GameStore {
     init() {
         load()
         if Self.isScreenshotMode { setUpScreenshotCareer() }
+        seenRewardIDs = Set(career?.rewardLog.map(\.id) ?? [])
     }
 
     // MARK: - App Store screenshots
@@ -45,6 +51,14 @@ final class GameStore {
         career = world
         if let tab = Self.launchValue("-screenshotTab").flatMap(AppTab.init(rawValue:)) {
             selectedTab = tab
+        }
+        if let section = Self.launchValue("-profileSection").flatMap(ProfileSection.init(rawValue:)) {
+            profileSection = section
+        }
+        // Something to show off in the store and profile screenshots.
+        profile.earn(12_500)
+        for id in ["frame.champion", "bg.stadium", "badge.crown", "title.tactician", "frame.gold", "badge.flame"] {
+            if let item = CosmeticCatalog.item(id) { profile.unlock(item); profile.equip(item) }
         }
     }
 
@@ -108,9 +122,33 @@ final class GameStore {
         }.value
         career = updated
         isSimulating = false
+        profile.lastEarned = collectRewards()
         presentedReport = PresentedReport(report: report)
         AdManager.shared.recordPlayedWeek()
         save()
+    }
+
+    /// Moves points the career earned into the profile wallet and unlocks matching achievements.
+    @discardableResult
+    private func collectRewards() -> Int {
+        guard var working = career else { return 0 }
+        let points = working.claimRewardPoints()
+        let fresh = working.rewardLog.filter { !seenRewardIDs.contains($0.id) }
+        seenRewardIDs.formUnion(fresh.map(\.id))
+        career = working
+        profile.earn(points)
+        profile.update(trophies: working.manager.trophies, seasons: working.manager.seasonsManaged)
+        let center = GameCenterManager.shared
+        for event in fresh {
+            switch event.reason {
+            case .matchWin: center.unlock(.firstWin)
+            case .leagueTitle: center.unlock(.leagueTitle)
+            case .cupWin: center.unlock(.europeWinner)
+            case .playerSale where event.points >= 200: center.unlock(.bigSale)
+            default: break
+            }
+        }
+        return points
     }
 
     /// Applies a change to the career and saves it. Returns whatever the change returns.
@@ -119,6 +157,7 @@ final class GameStore {
         guard var working = career else { return nil }
         let result = change(&working)
         career = working
+        _ = collectRewards()
         save()
         return result
     }
@@ -130,6 +169,10 @@ struct PresentedReport: Identifiable {
     let report: WeekReport
 }
 
+enum ProfileSection: String, CaseIterable, Hashable {
+    case profile, store, ranking
+}
+
 enum AppTab: String, Hashable {
-    case home, squad, transfers, club, league
+    case home, squad, transfers, league, profile
 }

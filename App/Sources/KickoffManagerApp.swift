@@ -70,17 +70,18 @@ struct MainTabView: View {
                 .tabItem { Label(L("tab.transfers"), systemImage: "arrow.left.arrow.right") }
                 .badge(store.career?.pendingOffers.count ?? 0)
                 .tag(AppTab.transfers)
-            NavigationStack { ClubView() }
-                .tabItem { Label(L("tab.club"), systemImage: "building.columns.fill") }
-                .tag(AppTab.club)
             NavigationStack { LeagueView() }
                 .tabItem { Label(L("tab.league"), systemImage: "list.number") }
                 .tag(AppTab.league)
+            NavigationStack { ProfileHubView() }
+                .tabItem { Label(L("tab.profile"), systemImage: "person.crop.square.filled.and.at.rectangle.fill") }
+                .tag(AppTab.profile)
         }
         .task {
             // The tracking prompt only appears while the app is active, so wait a moment.
             try? await Task.sleep(for: .seconds(1.5))
             AdManager.shared.start()
+            GameCenterManager.shared.authenticate()
         }
     }
 }
@@ -91,6 +92,7 @@ struct MatchLink: Hashable { let fixtureID: UUID }
 struct InboxLink: Hashable {}
 struct ContractsLink: Hashable {}
 struct ScoutLink: Hashable {}
+struct ClubLink: Hashable {}
 
 extension View {
     func gameDestinations() -> some View {
@@ -99,5 +101,6 @@ extension View {
             .navigationDestination(for: InboxLink.self) { _ in InboxView() }
             .navigationDestination(for: ContractsLink.self) { _ in ContractsView() }
             .navigationDestination(for: ScoutLink.self) { _ in ScoutView() }
+            .navigationDestination(for: ClubLink.self) { _ in ClubView() }
     }
 }

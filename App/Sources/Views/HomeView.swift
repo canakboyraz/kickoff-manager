@@ -17,6 +17,7 @@ struct HomeView: View {
         return ScrollView {
             VStack(spacing: 14) {
                 clubHeader(career, club: club)
+                clubLink()
                 windowBanner(career)
                 contractsBanner(career)
                 ForEach(career.jobOffers) { offer in
@@ -47,6 +48,7 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                packsCard()
                 RewardsCard()
                 ManagerCard(career: career)
                 topPerformers(career)
@@ -104,8 +106,74 @@ struct HomeView: View {
                     .foregroundStyle(Theme.textSecondary)
             }
             Spacer()
-            Chip(text: Fmt.money(club.finances.balance), icon: "dollarsign.circle.fill")
+            VStack(alignment: .trailing, spacing: 6) {
+                Chip(text: Fmt.money(club.finances.balance), icon: "dollarsign.circle.fill")
+                Button {
+                    store.profileSection = .store
+                    store.selectedTab = .profile
+                } label: {
+                    Chip(text: L("points.short", Fmt.number(store.profile.points)), icon: "star.circle.fill", color: Theme.positive)
+                }
+                .buttonStyle(.plain)
+            }
         }
+    }
+
+    /// Club management (facilities, stadium, finances) now lives behind the club header.
+    private func clubLink() -> some View {
+        NavigationLink(value: ClubLink()) {
+            HStack(spacing: 10) {
+                Image(systemName: "building.columns.fill")
+                    .foregroundStyle(Theme.goldLight)
+                Text(L("home.clubManagement"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.textMuted)
+            }
+            .gameCard(padding: 12)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Packs teaser: points balance and a shortcut to the store.
+    private func packsCard() -> some View {
+        Button {
+            store.profileSection = .store
+            store.selectedTab = .profile
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(PackType.all[2].gradient)
+                        .frame(width: 44, height: 60)
+                        .rotationEffect(.degrees(-8))
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(PackType.all[3].gradient)
+                        .frame(width: 44, height: 60)
+                        .rotationEffect(.degrees(6))
+                        .offset(x: 14)
+                }
+                .frame(width: 70)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L("home.packs.title"))
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(L("home.packs.body", Fmt.number(store.profile.points)))
+                        .font(.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.goldLight)
+            }
+            .gameCard(padding: 12, highlight: Theme.gold.opacity(0.6))
+        }
+        .buttonStyle(.plain)
     }
 
     /// Every few played weeks an ad is shown once the match report is closed.
@@ -442,6 +510,19 @@ struct WeekReportSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 14) {
+                    if store.profile.lastEarned > 0 {
+                        HStack(spacing: 8) {
+                            Image(systemName: "star.circle.fill")
+                            Text(L("report.points", Fmt.number(store.profile.lastEarned)))
+                                .font(.subheadline.weight(.bold))
+                            Spacer()
+                            Text(L("points.short", Fmt.number(store.profile.points)))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        .foregroundStyle(Theme.positive)
+                        .gameCard(padding: 10, highlight: Theme.positive.opacity(0.5))
+                    }
                     if let career = store.career, let fixture = report.userCupFixture, let kind = report.userCupKind {
                         let match = career.cupMatch(fixture.id)
                         MatchSummaryView(cupFixture: match?.fixture ?? fixture, kind: kind, cup: match?.cup, career: career)

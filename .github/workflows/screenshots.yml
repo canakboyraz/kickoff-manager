@@ -56,8 +56,9 @@ jobs:
             shoot $lang 3-transfers -screenshotTab transfers
             shoot $lang 4-league -screenshotTab league
             shoot $lang 5-stats -screenshotTab league -leagueMode stats
-            shoot $lang 6-club -screenshotTab club
+            shoot $lang 6-store -screenshotTab profile -profileSection store
             shoot $lang 7-penalty -screenshotTab home -showPenalty 1
+            shoot $lang 8-profile -screenshotTab profile
           done
           ls -la shots
       - name: Publish screenshots
