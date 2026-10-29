@@ -78,6 +78,12 @@ struct StoreView: View {
         .alert(notice ?? "", isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } })) {
             Button(L("common.ok")) {}
         }
+        .task {
+            // Screenshot workflow: open a pack straight away.
+            if let id = GameStore.launchValue("-openPack"), let pack = PackType.all.first(where: { $0.id == id }) {
+                open(pack)
+            }
+        }
     }
 
     private func open(_ pack: PackType) {

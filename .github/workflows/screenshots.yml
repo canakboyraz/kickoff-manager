@@ -59,6 +59,8 @@ jobs:
             shoot $lang 6-store -screenshotTab profile -profileSection store
             shoot $lang 7-penalty -screenshotTab home -showPenalty 1
             shoot $lang 8-profile -screenshotTab profile
+            shoot $lang 9-pack -screenshotTab profile -profileSection store -openPack elite -packStage last
+            shoot $lang 10-packs -screenshotTab profile -profileSection store -openPack gold -packStage summary
           done
           ls -la shots
       - name: Publish screenshots

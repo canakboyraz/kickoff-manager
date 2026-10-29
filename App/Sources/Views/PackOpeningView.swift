@@ -22,6 +22,19 @@ struct PackOpeningView: View {
     @State private var revealToken = 0
     @State private var walkoutTask: Task<Void, Never>?
 
+    init(pack: PackType, cards: [RevealedCard], onDone: @escaping () -> Void) {
+        self.pack = pack
+        self.cards = cards
+        self.onDone = onDone
+        // Screenshot workflow: jump to a given stage.
+        switch GameStore.launchValue("-packStage") {
+        case "last": _stage = State(initialValue: .card(index: cards.count - 1, walkoutStep: 3))
+        case "walkout": _stage = State(initialValue: .card(index: cards.count - 1, walkoutStep: 2))
+        case "summary": _stage = State(initialValue: .summary)
+        default: break
+        }
+    }
+
     var body: some View {
         ZStack {
             background
