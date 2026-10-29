@@ -3,7 +3,7 @@
 FC kariyer modu sadeliğinde, kurgusal takımlarla oynanan bir iOS futbol menajerlik oyunu.
 SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 
-## Neler var (v0.6)
+## Neler var (v1.1)
 
 - **8 kurgusal lig**: Hilal Lig (TR), Albion Premier (EN), Liga Ibérica (ES), Bundesklasse (DE), Serie Azzurra (IT), Ligue Tricolore (FR), Liga Lusitana (PT), Polder Divisie (NL). Her ligde 18 kulüp, kulüp başına 24 oyuncu.
 - **Kadro ve diziliş**: 10 diziliş (4-3-3, 4-4-2, 4-2-3-1, 3-5-2, 5-3-2, 4-1-4-1, 4-3-1-2, 4-3-2-1, 3-4-3, 4-5-1). İlk 11, 7 yedek ve kadro dışı aynı ekranda; iki oyuncuya sırayla dokunarak yer değiştirilir. Otomatik diz butonu.
@@ -25,6 +25,9 @@ SwiftUI ile yazıldı; Mac gerekmeden bulutta derlenip TestFlight'a gönderilir.
 - **Scout**: mevki, lig, yaş, potansiyel ve değer kriterleriyle scout gönderme (aynı anda 2). 2–3 hafta sonra en fazla 5 oyunculuk rapor gelir; bulunan oyuncular o sezon %12–25 daha ucuz bonservis ve %5–12 daha düşük maaşla alınır.
 - **Bedava transfer parası**: saatte bir ödüllü reklam (+€2M) ve günde bir penaltı atışı (yön, yükseklik ve güç; gol olursa +€5M).
 - **Reklam ve satın alma**: her 5 oynanan haftada bir geçiş reklamı (AdMob). "Reklamları kaldır" tek seferlik satın alımı (StoreKit 2) ve geri yükleme.
+- **Kickoff Puanı ve paketler**: maç, şampiyonluk, Avrupa turları ve oyuncu satışlarından puan kazanılır. Bronz/Gümüş/Altın/Elit paketlerden kadroya katılan oyuncular (genç yetenek, kadro, yıldız, efsane) ve profil süsleri çıkar. İhtimaller oyunda gösterilir; paketler gerçek parayla satılmaz.
+- **Profil ve mağaza**: çerçeve, arka plan, rozet ve unvanlarla kişiselleştirilen profil kartı; günlük teklifler ve tüm süslerin kataloğu.
+- **Online**: Game Center dünya sıralaması (diğer menajerlerin kartları da görünür) ve başarımlar.
 - **Türkçe + İngilizce** arayüz, otomatik kayıt.
 
 ## Proje yapısı
